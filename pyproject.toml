@@ -1,0 +1,77 @@
+[project]
+name = "stem-atom-finder"
+version = "0.1.0"
+description = "GPU-accelerated atom finding and analysis in HR-STEM images with MLflow tracking"
+requires-python = ">=3.10"
+license = "MIT"
+
+dependencies = [
+    # Core scientific
+    "numpy>=1.24",
+    "scipy>=1.10",
+    "scikit-image>=0.20",
+    "hyperspy>=2.0",
+    "atomap>=0.3",
+    "h5py>=3.8",
+    "pandas>=2.0",
+
+    # ML pipeline
+    "scikit-learn>=1.3",
+    "hdbscan>=0.8.33",
+
+    # Experiment tracking
+    "mlflow>=2.10",
+
+    # Web app
+    "fastapi>=0.110",
+    "uvicorn[standard]>=0.27",
+    "python-multipart>=0.0.6",
+    "websockets>=12.0",
+    "pydantic>=2.5",
+
+    # AI agent
+    "ollama>=0.1",
+    "httpx>=0.26",
+    "boto3>=1.34",
+
+    # Config
+    "pyyaml>=6.0",
+    "omegaconf>=2.3",
+
+    # Visualization
+    "matplotlib>=3.7",
+    "plotly>=5.18",
+]
+
+[project.optional-dependencies]
+gpu = [
+    "cupy-cuda12x>=13.0",
+    "torch>=2.2",
+    "cuml-cu12>=24.02",
+]
+agentic = [
+    "mcp[cli]>=1.26.0",
+]
+dev = [
+    "pytest>=7.0",
+    "pytest-benchmark>=4.0",
+    "ruff>=0.2",
+]
+
+[project.scripts]
+stem-find = "core.cli:main"
+stem-server = "app.main:run"
+stem-mcp-peak = "mcp_app.peak_server:main"
+stem-mcp-strain = "mcp_app.strain_server:main"
+stem-mcp-ml = "mcp_app.ml_server:main"
+stem-mcp-project = "mcp_app.project_server:main"
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.setuptools.packages.find]
+include = ["core", "ml", "app", "mcp_app", "agent"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

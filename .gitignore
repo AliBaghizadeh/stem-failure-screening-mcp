@@ -1,0 +1,80 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+*.egg
+.pytest_cache/
+.mypy_cache/
+
+# Environment
+.venv/
+.env
+.env.*
+env/
+!.env.cloud.example
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Numba
+.numba_cache/
+
+# MLflow
+mlruns/
+
+# Data outputs (large, regenerable)
+results/
+batch_results/
+data/output*/
+data/_uploads/
+data/patches/
+tmp_debug/
+test folder with space/
+_tmp_preview_*.png
+
+# Local project-only folders not intended for GitHub
+.agent/
+app_old/
+docs/
+GaAs1/
+GaAs2/
+GaN/
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Large binary outputs
+*.hdf5
+*.hspy
+*.tif
+*.tiff
+
+# Keep only the two small example GaAs assets in GitHub
+!data/
+!data/1.tif
+!data/2.tif
+
+# Project notes / private logs not intended for public repo
+APP_GUIDE.md
+MCP_APP_ARCHITECTURE.md
+RUN_INSTRUCTIONS.md
+RUN_INSTRUCTIONS_ver0.md
+
+# Local debug / scratch files
+check_shapes.py
+debug_imports.py
+debug_sublattice.py
+debug_thread.py
+peak_fitting_test.py
+tmp_test_clustering.csv
+
+# Local cloud / AWS scratch
+.aws-sam/

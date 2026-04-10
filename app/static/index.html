@@ -1,0 +1,1812 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>STEM Atom Finder — Multi-Agent Lab</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #0b0f1a;
+      --card: #131929;
+      --border: #1e2d45;
+      --accent: #3b82f6;
+      --accent2: #6366f1;
+      --green: #22c55e;
+      --red: #ef4444;
+      --amber: #f59e0b;
+      --text: #e2e8f0;
+      --muted: #64748b;
+      --radius: 12px;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Header ─────────────────────────────────────────────────────── */
+    header {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 18px 32px;
+      background: var(--card);
+      border-bottom: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      z-index: 50;
+    }
+
+    header .logo {
+      font-size: 22px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+    }
+
+    header .logo span {
+      color: var(--accent);
+    }
+
+    header .badge {
+      font-size: 11px;
+      font-weight: 600;
+      padding: 2px 8px;
+      background: #1e2d45;
+      color: var(--accent);
+      border-radius: 99px;
+    }
+
+    /* ── Layout ─────────────────────────────────────────────────────── */
+    .layout {
+      display: flex;
+      flex: 1;
+      height: calc(100vh - 61px);
+    }
+
+    /* ── Sidebar ─────────────────────────────────────────────────────── */
+    .sidebar {
+      width: 260px;
+      min-width: 260px;
+      background: var(--card);
+      border-right: 1px solid var(--border);
+      padding: 24px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      overflow-y: auto;
+    }
+
+    .sidebar-label {
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      padding: 8px 10px 4px;
+    }
+
+    .agent-btn {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 11px 14px;
+      border-radius: 8px;
+      cursor: pointer;
+      border: none;
+      background: transparent;
+      color: var(--text);
+      font-size: 14px;
+      font-weight: 500;
+      text-align: left;
+      width: 100%;
+      transition: background 0.15s;
+    }
+
+    .agent-btn:hover {
+      background: #1a2336;
+    }
+
+    .agent-btn.active {
+      background: #1a2d52;
+      color: var(--accent);
+    }
+
+    .agent-btn .icon {
+      font-size: 18px;
+      width: 28px;
+      text-align: center;
+    }
+
+    .agent-btn .dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      margin-left: auto;
+      background: var(--border);
+      flex-shrink: 0;
+    }
+
+    .agent-btn .dot.done {
+      background: var(--green);
+    }
+
+    .agent-btn .dot.running {
+      background: var(--amber);
+      animation: pulse 1s infinite;
+    }
+
+    .agent-btn .dot.error {
+      background: var(--red);
+    }
+
+    @keyframes pulse {
+
+      0%,
+      100% {
+        opacity: 1
+      }
+
+      50% {
+        opacity: 0.3
+      }
+    }
+
+    /* ── Main ─────────────────────────────────────────────────────────── */
+    .main {
+      flex: 1;
+      overflow-y: auto;
+      padding: 28px 32px;
+    }
+
+    .panel {
+      display: none;
+    }
+
+    .panel.active {
+      display: block;
+    }
+
+    h2 {
+      font-size: 20px;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+
+    .subtitle {
+      color: var(--muted);
+      font-size: 13px;
+      margin-bottom: 22px;
+    }
+
+    /* ── Card ─────────────────────────────────────────────────────────── */
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 22px 24px;
+      margin-bottom: 20px;
+    }
+
+    .card-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--muted);
+      margin-bottom: 14px;
+    }
+
+    /* ── Form ─────────────────────────────────────────────────────────── */
+    .form-row {
+      display: flex;
+      gap: 14px;
+      flex-wrap: wrap;
+      margin-bottom: 14px;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      flex: 1;
+      min-width: 140px;
+    }
+
+    label {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--muted);
+    }
+
+    input[type=text],
+    input[type=number],
+    textarea {
+      background: #0f1824;
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 7px;
+      padding: 8px 11px;
+      font-size: 13px;
+      font-family: inherit;
+      width: 100%;
+      transition: border-color 0.15s;
+    }
+
+    textarea {
+      resize: vertical;
+      min-height: 96px;
+    }
+
+    input:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+
+    /* ── Drop zone ─────────────────────────────────────────────────────── */
+    .drop-zone {
+      border: 2px dashed var(--border);
+      border-radius: var(--radius);
+      padding: 26px 18px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color 0.2s, background 0.2s;
+      margin-bottom: 14px;
+    }
+
+    .drop-zone:hover,
+    .drop-zone.dragover {
+      border-color: var(--accent);
+      background: #0f1f3d;
+    }
+
+    .drop-zone .dz-icon {
+      font-size: 28px;
+      margin-bottom: 6px;
+    }
+
+    .drop-zone p {
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .drop-zone .file-name {
+      color: var(--accent);
+      font-size: 13px;
+      margin-top: 4px;
+    }
+
+    /* ── Buttons ─────────────────────────────────────────────────────── */
+    .btn {
+      padding: 9px 20px;
+      border-radius: 7px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      transition: opacity 0.15s, transform 0.1s;
+      font-family: inherit;
+    }
+
+    .btn:hover {
+      opacity: 0.88;
+    }
+
+    .btn:active {
+      transform: scale(0.97);
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: white;
+    }
+
+    .btn-success {
+      background: var(--green);
+      color: white;
+    }
+
+    .btn-ghost {
+      background: transparent;
+      color: var(--muted);
+      border: 1px solid var(--border);
+    }
+
+    /* ── Progress ─────────────────────────────────────────────────────── */
+    .status-bar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-size: 13px;
+      margin-bottom: 16px;
+      display: none;
+    }
+
+    .status-bar.running {
+      background: #1a1800;
+      border: 1px solid #78450a;
+      color: var(--amber);
+      display: flex;
+      flex-direction: column;
+      align-items: stretch;
+      gap: 8px;
+    }
+
+    .status-line {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .progress-container {
+      height: 6px;
+      background: #332b00;
+      border-radius: 3px;
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: var(--amber);
+      transition: width 0.3s;
+    }
+
+    .hw-badge {
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 4px;
+      margin-left: 8px;
+      text-transform: uppercase;
+    }
+
+    .hw-gpu {
+      background: #059669;
+      color: white;
+    }
+
+    .hw-cpu {
+      background: #4b5563;
+      color: white;
+    }
+
+    .status-bar.done {
+      background: #0c1f10;
+      border: 1px solid #14532d;
+      color: var(--green);
+      display: flex;
+    }
+
+    .status-bar.error {
+      background: #1a0d0d;
+      border: 1px solid #7f1d1d;
+      color: var(--red);
+      display: flex;
+    }
+
+    .spinner {
+      width: 14px;
+      height: 14px;
+      border: 2px solid transparent;
+      border-top-color: currentColor;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+
+    @keyframes spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    /* ── Results grid ─────────────────────────────────────────────────── */
+    .results-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 16px;
+      margin-top: 10px;
+    }
+
+    .result-thumb {
+      border-radius: var(--radius);
+      overflow: hidden;
+      border: 1px solid var(--border);
+      background: var(--card);
+    }
+
+    .result-thumb img {
+      width: 100%;
+      display: block;
+      cursor: zoom-in;
+      transition: transform 0.3s;
+    }
+
+    .result-thumb img:hover {
+      transform: scale(1.02);
+    }
+
+    .result-thumb .thumb-label {
+      padding: 8px 12px;
+      font-size: 11px;
+      color: var(--muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .result-thumb.csv-thumb {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 14px;
+    }
+
+    .result-thumb.csv-thumb .csv-icon {
+      font-size: 22px;
+    }
+
+    .result-thumb.csv-thumb a {
+      color: var(--accent);
+      font-size: 12px;
+      text-decoration: none;
+    }
+
+    .result-thumb.csv-thumb a:hover {
+      text-decoration: underline;
+    }
+
+    .stats-card {
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--card);
+      padding: 14px 16px;
+    }
+
+    .stats-card .thumb-label {
+      padding: 0;
+      margin-bottom: 10px;
+      font-size: 12px;
+      color: var(--text);
+      font-weight: 600;
+    }
+
+    .stats-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+      gap: 10px;
+    }
+
+    .stats-item {
+      background: #0f1824;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px;
+    }
+
+    .stats-key {
+      font-size: 11px;
+      color: var(--muted);
+      margin-bottom: 4px;
+    }
+
+    .stats-value {
+      font-size: 14px;
+      color: var(--text);
+      font-weight: 600;
+      word-break: break-word;
+    }
+
+    .stats-flags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
+    .stats-flag {
+      font-size: 11px;
+      font-weight: 700;
+      padding: 4px 8px;
+      border-radius: 999px;
+      background: #1a2d52;
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+
+    .stats-summary {
+      font-size: 12px;
+      color: var(--text);
+      margin-bottom: 10px;
+      line-height: 1.5;
+    }
+
+    .stats-warning {
+      margin-top: 10px;
+      font-size: 11px;
+      color: var(--amber);
+      line-height: 1.5;
+      border-top: 1px solid var(--border);
+      padding-top: 10px;
+    }
+
+    /* ── Lightbox ─────────────────────────────────────────────────────── */
+    #lightbox {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 100;
+      background: rgba(0, 0, 0, 0.85);
+      align-items: center;
+      justify-content: center;
+    }
+
+    #lightbox.open {
+      display: flex;
+    }
+
+    #lightbox img {
+      max-width: 92vw;
+      max-height: 92vh;
+      border-radius: var(--radius);
+    }
+
+    #lightbox-close {
+      position: absolute;
+      top: 20px;
+      right: 28px;
+      font-size: 28px;
+      cursor: pointer;
+      color: white;
+    }
+
+    /* ── Log Window ────────────────────────────────────────────────────── */
+    .log-window {
+      background: #0a0e17;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-family: 'Courier New', monospace;
+      font-size: 11px;
+      padding: 12px;
+      height: 160px;
+      overflow-y: auto;
+      color: #a1a1aa;
+      margin-top: 16px;
+    }
+
+    /* ── Pipeline board ─────────────────────────────────────────────────── */
+    .pipeline {
+      display: flex;
+      gap: 0;
+      align-items: center;
+      flex-wrap: wrap;
+      margin-bottom: 24px;
+    }
+
+    .pipe-step {
+      display: flex;
+      align-items: center;
+      gap: 0;
+    }
+
+    .pipe-node {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 16px;
+      font-size: 13px;
+      cursor: pointer;
+      transition: border-color 0.15s;
+      font-weight: 500;
+      white-space: nowrap;
+    }
+
+    .pipe-node:hover {
+      border-color: var(--accent);
+    }
+
+    .pipe-node.done {
+      border-color: var(--green);
+      color: var(--green);
+    }
+
+    .pipe-node.running {
+      border-color: var(--amber);
+      color: var(--amber);
+    }
+
+    .pipe-arrow {
+      color: var(--muted);
+      padding: 0 8px;
+      font-size: 16px;
+    }
+  </style>
+</head>
+
+<body>
+
+  <header>
+    <div class="logo">STEM<span>Lab</span></div>
+    <div class="badge">Multi-Agent</div>
+  </header>
+
+  <div class="layout">
+
+    <!-- Sidebar -->
+    <nav class="sidebar">
+      <div class="sidebar-label">Agents</div>
+      <div class="sidebar-label" style="color:var(--accent); font-weight:700;">Preview Orientation</div>
+      <div style="padding:0 12px; margin-bottom: 20px; font-size:12px; display:flex; flex-direction:column; gap:8px;">
+        <label
+          style="display:flex; align-items:center; gap:8px; cursor:pointer; background:rgba(0,0,0,0.2); padding:6px; border-radius:4px;">
+          <input type="checkbox" id="flip-h" onchange="saveOrientation()"> ↔️ Flip Left/Right
+        </label>
+        <label
+          style="display:flex; align-items:center; gap:8px; cursor:pointer; background:rgba(0,0,0,0.2); padding:6px; border-radius:4px;">
+          <input type="checkbox" id="flip-v" onchange="saveOrientation()"> ↕️ Flip Top/Bottom
+        </label>
+        <div style="font-size:11px; color:var(--muted); line-height:1.5;">
+          Visual only. These options do not modify CSV coordinates.
+        </div>
+        <button class="btn btn-ghost" onclick="resetOrientation()" style="width:100%; font-size:11px; padding:6px;">
+          Reset Orientation
+        </button>
+      </div>
+
+      <div class="sidebar-label">Analysis Agents</div>
+      <button class="agent-btn active" onclick="show('grid-search')" id="nav-grid-search">
+        <span class="icon">🔍</span> Grid Search
+        <span class="dot" id="dot-grid-search"></span>
+      </button>
+      <button class="agent-btn" onclick="show('analyze')" id="nav-analyze">
+        <span class="icon">⚛️</span> Peak Finding
+        <span class="dot" id="dot-analyze"></span>
+      </button>
+      <button class="agent-btn" onclick="show('strain')" id="nav-strain">
+        <span class="icon">📐</span> Strain Map
+        <span class="dot" id="dot-strain"></span>
+      </button>
+      <button class="agent-btn" onclick="show('cluster')" id="nav-cluster">
+        <span class="icon">🧩</span> Clustering
+        <span class="dot" id="dot-cluster"></span>
+      </button>
+      <button class="agent-btn" onclick="show('defects')" id="nav-defects">
+        <span class="icon">🔴</span> Defect Detection
+        <span class="dot" id="dot-defects"></span>
+      </button>
+
+      <button class="agent-btn" onclick="show('llm-review')" id="nav-llm-review">
+        <span class="icon">AI</span> LLM Review
+        <span class="dot" id="dot-llm-review"></span>
+      </button>
+
+      <div class="sidebar-label" style="margin-top:10px;">Current Project</div>
+      <div style="padding:0 12px; margin-bottom: 16px;">
+        <div id="active-project-name" style="font-size:14px; font-weight:700; color:var(--accent); margin-bottom:8px;">
+          Unknown</div>
+        <button class="btn btn-ghost" onclick="openProjectModal()" style="width:100%; font-size:11px; padding:6px;">🔄
+          Switch Project</button>
+      </div>
+      <input type="hidden" id="project-name" />
+
+      <div class="sidebar-label" style="margin-top:16px;">History</div>
+      <div id="task-history" style="font-size:11px;color:var(--muted);padding:4px 10px;">No tasks yet</div>
+    </nav>
+
+    <!-- Main panels -->
+    <main class="main">
+
+      <!-- ── Grid Search ── -->
+      <div class="panel active" id="panel-grid-search">
+        <div style="display:flex; align-items:center; gap:10px;">
+          <h2>🔍 Grid Search Agent</h2>
+          <span id="hw-grid-search"></span>
+        </div>
+        <p class="subtitle">Automatically finds the best peak detection parameters for your image.</p>
+        <div class="card">
+          <div class="card-title">INPUT IMAGE</div>
+          <div class="drop-zone" id="dz-gs" onclick="document.getElementById('f-gs-image').click()">
+            <div class="dz-icon">📂</div>
+            <p>Drop a TIFF / PNG image here or click to browse</p>
+            <div class="file-name" id="fn-gs-image"></div>
+          </div>
+          <input type="file" id="f-gs-image" hidden accept=".tif,.tiff,.png,.dm3,.dm4"
+            onchange="setFile('gs-image',this)" />
+          <div class="card-title" style="margin-top:16px;">PARAMETER RANGES</div>
+          <div class="form-row">
+            <div class="form-group"><label>Sep Min</label><input type="number" id="gs-sep-min" value="4" /></div>
+            <div class="form-group"><label>Sep Max</label><input type="number" id="gs-sep-max" value="8" /></div>
+            <div class="form-group"><label>Sep Step</label><input type="number" id="gs-sep-step" value="2" /></div>
+          </div>
+          <div class="form-row">
+            <div class="form-group"><label>Thresh Min</label><input type="number" id="gs-th-min" value="0.30"
+                step="0.05" /></div>
+            <div class="form-group"><label>Thresh Max</label><input type="number" id="gs-th-max" value="0.60"
+                step="0.05" /></div>
+            <div class="form-group"><label>Thresh Step</label><input type="number" id="gs-th-step" value="0.10"
+                step="0.05" /></div>
+          </div>
+          <div class="card-title" style="margin-top:16px;">PERFORMANCE & HARDWARE</div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Hardware Mode</label>
+              <select id="gs-hardware" onchange="toggleWorkers()" class="btn btn-ghost"
+                style="width:100%; text-align:left; background:#1e2d45; color:white; border:none;">
+                <option value="cpu">CPU Parallel (High Core Count)</option>
+                <option value="gpu">GPU Sequential (RTX 5080)</option>
+              </select>
+            </div>
+            <div class="form-group" id="gs-workers-group">
+              <label>CPU Workers (Cores)</label>
+              <input type="number" id="gs-workers" value="8" min="1" max="32" />
+            </div>
+          </div>
+          <button class="btn btn-primary" onclick="submitGridSearch()">▶ Run Grid Search</button>
+        </div>
+        <div class="status-bar" id="sb-grid-search">
+          <div class="status-line">
+            <div class="spinner"></div><span id="sb-grid-search-text"></span>
+          </div>
+          <div class="progress-container" id="pc-grid-search" style="display:none">
+            <div class="progress-fill" id="pf-grid-search" style="width: 0%"></div>
+          </div>
+        </div>
+        <div class="log-window" id="log-grid-search">Waiting for grid search to start...</div>
+        <div class="results-grid" id="results-grid-search"></div>
+      </div>
+
+      <!-- ── Peak Finding ── -->
+      <div class="panel" id="panel-analyze">
+        <div style="display:flex; align-items:center; gap:10px;">
+          <h2>⚛️ Peak Finding Agent</h2>
+          <span id="hw-analyze"></span>
+        </div>
+        <p class="subtitle">Detects all atomic column positions in a single STEM image and exports coordinates &amp;
+          intensities to CSV.</p>
+        <div class="card">
+          <div class="card-title">INPUT IMAGE</div>
+          <p style="font-size:12px; color:var(--muted); margin-bottom:10px;">Upload your raw STEM image (same file you
+            acquired from the microscope). Accepted formats: .tif, .tiff, .png, .dm3, .dm4</p>
+          <div class="drop-zone" id="dz-an" onclick="document.getElementById('f-an-image').click()">
+            <div class="dz-icon">📂</div>
+            <p>Drop your raw STEM image here, or click to browse</p>
+            <div class="file-name" id="fn-an-image"></div>
+          </div>
+          <input type="file" id="f-an-image" hidden accept=".tif,.tiff,.png,.dm3,.dm4"
+            onchange="setFile('an-image',this)" />
+          <div class="card-title" style="margin-top:16px;">DETECTION PARAMETERS</div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Separation (px)</label>
+              <input type="number" id="an-sep" value="6" />
+              <span style="font-size:11px; color:var(--muted);">Min distance between atoms. Use Grid Search to find the
+                best value.</span>
+            </div>
+            <div class="form-group">
+              <label>Threshold (0–1)</label>
+              <input type="number" id="an-thresh" value="0.50" step="0.05" />
+              <span style="font-size:11px; color:var(--muted);">Relative intensity cutoff. Use Grid Search to find the
+                best value.</span>
+            </div>
+          </div>
+          <div class="card-title" style="margin-top:16px;">SUBLATTICE PARAMETERS</div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Sublattice Mode</label>
+              <select id="an-sub-mode" class="btn btn-ghost"
+                style="width:100%; text-align:left; background:#1e2d45; color:white; border:none;"
+                onchange="toggleSublatticeControls()">
+                <option value="two">Two-Sublattice (GaAs-like)</option>
+                <option value="single">Single-Sublattice (GaN-like HAADF)</option>
+              </select>
+              <span style="font-size:11px; color:var(--muted);">Use Two-Sublattice when both atomic sublattices should be separated. Use Single-Sublattice when only one visible atomic species is expected in the image.</span>
+            </div>
+            <div class="form-group">
+              <label>Sublattice Method</label>
+              <select id="an-sub-method" class="btn btn-ghost"
+                style="width:100%; text-align:left; background:#1e2d45; color:white; border:none;"
+                onchange="toggleSublatticeControls()">
+                <option value="local_pairing">Local Pairing (Recommended)</option>
+                <option value="gmm">GMM Intensity Split</option>
+              </select>
+              <span style="font-size:11px; color:var(--muted);">Use local nearest-neighbour dumbbell pairing for GaAs-like structures. Use GMM only when intensity bimodality is cleaner than geometry.</span>
+            </div>
+            <div class="form-group">
+              <label>Pair Max Dist (px)</label>
+              <input type="number" id="an-sub-maxdist" value="" step="0.1" placeholder="auto" />
+              <span style="font-size:11px; color:var(--muted);">Leave blank for automatic pairing-distance detection. Increase to catch wider dumbbells; decrease to avoid false pairs.</span>
+            </div>
+            <div class="form-group">
+              <label>Pair Min Dist (px)</label>
+              <input type="number" id="an-sub-mindist" value="0.0" step="0.1" />
+              <span style="font-size:11px; color:var(--muted);">Optional lower bound to reject implausibly small pairs and artifacts.</span>
+            </div>
+          </div>
+          <div class="card-title" style="margin-top:16px;">PERFORMANCE &amp; HARDWARE</div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Hardware Mode</label>
+              <select id="an-hardware" onchange="toggleAnalyzeWorkers()" class="btn btn-ghost"
+                style="width:100%; text-align:left; background:#1e2d45; color:white; border:none;">
+                <option value="cpu">CPU Parallel (Multi-Core)</option>
+                <option value="gpu">GPU Sequential (RTX 5080)</option>
+              </select>
+            </div>
+            <div class="form-group" id="an-workers-group">
+              <label>CPU Workers (Cores)</label>
+              <input type="number" id="an-workers" value="4" min="1" max="32" />
+            </div>
+          </div>
+          <button class="btn btn-primary" onclick="submitAnalyze()">▶ Run Peak Finding</button>
+        </div>
+        <div class="status-bar" id="sb-analyze">
+          <div class="spinner"></div><span id="sb-analyze-text"></span>
+        </div>
+        <div class="log-window" id="log-analyze">Waiting for peak finding results...</div>
+        <div class="results-grid" id="results-analyze"></div>
+      </div>
+
+      <!-- ── Strain ── -->
+      <div class="panel" id="panel-strain">
+        <div style="display:flex; align-items:center; gap:10px;">
+          <h2>📐 Strain Map Agent</h2>
+          <span id="hw-strain"></span>
+        </div>
+        <p class="subtitle">Measures local lattice distortions by comparing atom-pair distances to the median reference
+          spacing.</p>
+        <div class="card" style="margin-bottom:16px; border-left:3px solid var(--accent2);">
+          <div class="card-title">ℹ️ WHAT THIS AGENT DOES</div>
+          <p style="font-size:13px; color:var(--text); line-height:1.7;">
+            This agent computes <b>local row and column strain</b> across the entire field of view. It takes the
+            detected atom positions from the Peak Finding step, pairs each atom with its nearest neighbours, and
+            compares those spacings to the <b>global median</b> (the "unstrained" reference). The result is a series of
+            colour-coded strain maps — one for each direction — highlighting regions of compression or tension in the
+            crystal lattice.
+          </p>
+        </div>
+        <div class="card">
+          <div class="card-title">INPUTS</div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>📊 Dumbbell CSV <span style="color:var(--accent);">*required</span></label>
+              <p style="font-size:11px; color:var(--muted); margin-bottom:6px;">The <code>_atoms.csv</code> file
+                produced by the <b>Peak Finding Agent</b>. Find it in your project folder under
+                <code>2_peak_finding/</code>. It contains x, y coordinates and intensity for every detected atom.
+              </p>
+              <div class="drop-zone" style="padding:14px" onclick="document.getElementById('f-st-csv').click()">
+                <div class="file-name" id="fn-st-csv">Drop *_atoms.csv here</div>
+              </div>
+              <input type="file" id="f-st-csv" hidden accept=".csv" onchange="setFile('st-csv',this)" />
+            </div>
+            <div class="form-group">
+              <label>🖼️ STEM Image <span style="color:var(--accent);">*required</span></label>
+              <p style="font-size:11px; color:var(--muted); margin-bottom:6px;">Your <b>original raw image</b> from the
+                microscope — the exact same file you uploaded to the Peak Finding Agent. Used as the background for the
+                overlay maps.</p>
+              <div class="drop-zone" style="padding:14px" onclick="document.getElementById('f-st-img').click()">
+                <div class="file-name" id="fn-st-img">Drop the original raw STEM image here</div>
+              </div>
+              <input type="file" id="f-st-img" hidden accept=".tif,.tiff,.png" onchange="setFile('st-img',this)" />
+            </div>
+          </div>
+          <div class="card-title">STRAIN TUNING</div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Dumbbell Prune Threshold (float, px)</label>
+              <input type="number" id="st-prune-thresh" value="0" min="0" step="0.1" />
+              <p style="font-size:11px; color:var(--muted);">Type: float. UI range: min 0.0, no hard max. Recommended start: 0.0 to 0.2. Use 0 to disable pruning. Increase only when very close dumbbell pairs are corrupting the lattice basis.</p>
+            </div>
+            <div class="form-group">
+              <label>Axis Tolerance Scale (float)</label>
+              <input type="number" id="st-axis-tol" value="0.7" min="0.2" max="2.0" step="0.1" />
+              <p style="font-size:11px; color:var(--muted);">Type: float. UI range: 0.2 to 2.0. Recommended practical range: 0.7 to 1.7. Higher values accept more neighbors as belonging to the same row or column and usually increase strain coverage.</p>
+            </div>
+            <div class="form-group">
+              <label>Min Axis Neighbors (integer)</label>
+              <input type="number" id="st-min-axis-neigh" value="2" min="0" max="8" step="1" />
+              <p style="font-size:11px; color:var(--muted);">Type: integer. UI range: 0 to 8. Recommended practical range: 1 to 2. `0` maximizes coverage but is usually too permissive for scientific use. Lower values increase atom retention; higher values are stricter and may leave many atoms without strain.</p>
+            </div>
+          </div>
+          <button class="btn btn-primary" onclick="submitStrain()">▶ Run Strain Analysis</button>
+        </div>
+        <div class="status-bar" id="sb-strain">
+          <div class="spinner"></div><span id="sb-strain-text"></span>
+        </div>
+        <div class="results-grid" id="results-strain"></div>
+      </div>
+
+      <!-- ── Cluster ── -->
+      <div class="panel" id="panel-cluster">
+        <div style="display:flex; align-items:center; gap:10px;">
+          <h2>🧩 Clustering Agent</h2>
+          <span id="hw-cluster"></span>
+        </div>
+        <p class="subtitle">Groups atoms into distinct structural environments using machine learning (HDBSCAN + GMM).
+        </p>
+        <div class="card" style="margin-bottom:16px; border-left:3px solid var(--accent2);">
+          <div class="card-title">ℹ️ WHAT THIS AGENT DOES</div>
+          <p style="font-size:13px; color:var(--text); line-height:1.7;">
+            This agent uses <b>unsupervised machine learning</b> to group atoms that share similar local structural
+            environments (strain, intensity, neighbour distances). It first applies <b>HDBSCAN</b> (a density-based
+            clustering algorithm) to find natural groupings without needing to specify the number of clusters. Then it
+            fits a <b>Gaussian Mixture Model (GMM)</b> to refine the boundaries. The output is a colour-coded map where
+            each colour represents a distinct structural environment — e.g. interfacial atoms, bulk atoms, defect-rich
+            zones.
+          </p>
+        </div>
+        <div class="card">
+          <div class="card-title">INPUTS</div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>📊 Strain CSV <span style="color:var(--accent);">*required</span></label>
+              <p style="font-size:11px; color:var(--muted); margin-bottom:6px;">The <code>*_strain.csv</code> output
+                from the <b>Strain Map Agent</b>. Find it in your project folder under <code>3_strain_map/</code>. It
+                contains per-atom strain values used as features for clustering.</p>
+              <div class="drop-zone" style="padding:14px" onclick="document.getElementById('f-cl-csv').click()">
+                <div class="file-name" id="fn-cl-csv">Drop *_strain.csv here</div>
+              </div>
+              <input type="file" id="f-cl-csv" hidden accept=".csv" onchange="setFile('cl-csv',this)" />
+            </div>
+            <div class="form-group">
+              <label>🖼️ STEM Image <span style="color:var(--muted);">(optional)</span></label>
+              <p style="font-size:11px; color:var(--muted); margin-bottom:6px;">Your <b>original raw STEM image</b> from
+                the microscope — the same file used in Peak Finding. If provided, atom clusters are drawn overlaid on
+                the real image for visual inspection.</p>
+              <div class="drop-zone" style="padding:14px" onclick="document.getElementById('f-cl-img').click()">
+                <div class="file-name" id="fn-cl-img">Drop the original raw STEM image here (optional)</div>
+              </div>
+              <input type="file" id="f-cl-img" hidden accept=".tif,.tiff,.png" onchange="setFile('cl-img',this)" />
+            </div>
+          </div>
+          <div class="card-title" style="margin-top:16px;">CLUSTERING PARAMETERS</div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Min Cluster Size</label>
+              <input type="number" id="cl-min" value="15" />
+              <span style="font-size:11px; color:var(--muted);">The minimum number of atoms to form a cluster. <b>Start
+                  with 15.</b> Increase (e.g. 30) to find fewer, larger groups; decrease (e.g. 5) to detect small
+                isolated clusters.</span>
+            </div>
+            <div class="form-group">
+              <label>GMM Components</label>
+              <input type="number" id="cl-gmm" value="4" />
+              <span style="font-size:11px; color:var(--muted);">Number of structural environments you expect in your
+                sample. <b>Start with 4.</b> For a simple crystal: 2–3. For a heterostructure interface: 4–6.</span>
+            </div>
+          </div>
+          <button class="btn btn-primary" onclick="submitCluster()">▶ Run Clustering</button>
+        </div>
+        <div class="status-bar" id="sb-cluster">
+          <div class="spinner"></div><span id="sb-cluster-text"></span>
+        </div>
+        <div class="results-grid" id="results-cluster"></div>
+      </div>
+
+      <!-- ── Defects ── -->
+      <div class="panel" id="panel-defects">
+        <div style="display:flex; align-items:center; gap:10px;">
+          <h2>🔴 Defect Region Screening Agent</h2>
+          <span id="hw-defects"></span>
+        </div>
+        <p class="subtitle">Builds a smooth abnormal-region heatmap by fusing peak-finding irregularity, strain distortion, and clustering abnormality.</p>
+        <div class="card" style="margin-bottom:16px; border-left:3px solid var(--accent2);">
+          <div class="card-title">ℹ️ WHAT THIS AGENT DOES</div>
+          <p style="font-size:13px; color:var(--text); line-height:1.7;">
+            This stage replaces isolated atom-defect counting with <b>region screening</b>.<br>
+            It combines three existing signals from the pipeline:<br>
+            • <b>Peak-finding irregularity</b>: where dumbbell pairing or sublattice structure breaks down.<br>
+            • <b>Clustering abnormality</b>: where local atomic environments differ from the dominant lattice.<br>
+            • <b>Strain distortion</b>: where the measurable distortion field is strongest.<br>
+            The result is a heatmap and region overlay that highlight abnormal zones rather than a small list of isolated atom defects.
+          </p>
+        </div>
+        <div class="card" style="margin-bottom:16px; border-left:3px solid var(--accent);">
+          <div class="card-title">📁 INPUT GUIDE</div>
+          <p style="font-size:13px; color:var(--text); line-height:1.7;">
+            This agent requires the <b>Clustered CSV</b> (filename ends with <code>_clustered.csv</code>).<br>
+            You can find it in the output folder of the <b>Clustering Agent</b>.<br>
+            Example Path: <code>GaAs/4_clustering/[task_id]/[filename]_clustered.csv</code>
+          </p>
+        </div>
+        <div class="card">
+          <div class="card-title">INPUTS</div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Clustered CSV (_clustered.csv)</label>
+              <div class="drop-zone" style="padding:14px" onclick="document.getElementById('f-df-csv').click()">
+                <div class="file-name" id="fn-df-csv">Drop _clustered.csv here</div>
+              </div>
+              <input type="file" id="f-df-csv" hidden accept=".csv" onchange="setFile('df-csv',this)" />
+            </div>
+            <div class="form-group">
+              <label>STEM Image (optional)</label>
+              <div class="drop-zone" style="padding:14px" onclick="document.getElementById('f-df-img').click()">
+                <div class="file-name" id="fn-df-img">Drop image here</div>
+              </div>
+              <input type="file" id="f-df-img" hidden accept=".tif,.tiff,.png" onchange="setFile('df-img',this)" />
+            </div>
+          </div>
+          <div class="card-title" style="margin-top:16px;">OPTIONAL CONTEXT INPUTS</div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Peak Finding CSV (_atoms.csv)</label>
+              <div class="drop-zone" style="padding:14px" onclick="document.getElementById('f-df-peakcsv').click()">
+                <div class="file-name" id="fn-df-peakcsv">Drop _atoms.csv here (optional)</div>
+              </div>
+              <input type="file" id="f-df-peakcsv" hidden accept=".csv" onchange="setFile('df-peakcsv',this)" />
+            </div>
+            <div class="form-group">
+              <label>Strain CSV (_strain.csv)</label>
+              <div class="drop-zone" style="padding:14px" onclick="document.getElementById('f-df-straincsv').click()">
+                <div class="file-name" id="fn-df-straincsv">Drop _strain.csv here (optional)</div>
+              </div>
+              <input type="file" id="f-df-straincsv" hidden accept=".csv" onchange="setFile('df-straincsv',this)" />
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Peak run_manifest.json</label>
+              <div class="drop-zone" style="padding:14px" onclick="document.getElementById('f-df-peakmanifest').click()">
+                <div class="file-name" id="fn-df-peakmanifest">Drop peak run_manifest.json here (optional)</div>
+              </div>
+              <input type="file" id="f-df-peakmanifest" hidden accept=".json" onchange="setFile('df-peakmanifest',this)" />
+            </div>
+            <div class="form-group">
+              <label>Strain run_manifest.json</label>
+              <div class="drop-zone" style="padding:14px" onclick="document.getElementById('f-df-strainmanifest').click()">
+                <div class="file-name" id="fn-df-strainmanifest">Drop strain run_manifest.json here (optional)</div>
+              </div>
+              <input type="file" id="f-df-strainmanifest" hidden accept=".json" onchange="setFile('df-strainmanifest',this)" />
+            </div>
+          </div>
+          <div class="card-title" style="margin-top:16px;">REGION SCREENING PARAMETERS</div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Region Threshold</label>
+              <input type="number" id="df-region-threshold" value="0.45" min="0.1" max="0.9" step="0.05" />
+              <span style="font-size:11px; color:var(--muted);">Range 0.1 to 0.9. Lower values create broader abnormal regions; higher values isolate only the strongest zones.</span>
+            </div>
+            <div class="form-group">
+              <label>Blur Sigma</label>
+              <input type="number" id="df-blur-sigma" value="2.0" min="0.5" max="6.0" step="0.5" />
+              <span style="font-size:11px; color:var(--muted);">Range 0.5 to 6.0. Controls heatmap smoothing and how aggressively nearby hotspots merge.</span>
+            </div>
+            <div class="form-group">
+              <label>Min Region Atoms</label>
+              <input type="number" id="df-min-region-atoms" value="12" min="1" max="500" step="1" />
+              <span style="font-size:11px; color:var(--muted);">Minimum number of atoms required to keep a region. Increase to suppress small isolated hotspots.</span>
+            </div>
+          </div>
+          <div class="card-title" style="margin-top:16px;">FUSION WEIGHTS</div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Peak Weight</label>
+              <input type="number" id="df-peak-weight" value="0.45" min="0" max="1" step="0.05" />
+              <span style="font-size:11px; color:var(--muted);">Higher values trust peak-finding disorder, especially failed dumbbell regions.</span>
+            </div>
+            <div class="form-group">
+              <label>Cluster Weight</label>
+              <input type="number" id="df-cluster-weight" value="0.30" min="0" max="1" step="0.05" />
+              <span style="font-size:11px; color:var(--muted);">Higher values emphasize non-background or noisy structural environments.</span>
+            </div>
+            <div class="form-group">
+              <label>Strain Weight</label>
+              <input type="number" id="df-strain-weight" value="0.25" min="0" max="1" step="0.05" />
+              <span style="font-size:11px; color:var(--muted);">Higher values emphasize broad measurable distortion.</span>
+            </div>
+          </div>
+          <button class="btn btn-primary" onclick="submitDefects()">▶ Run Defect Region Screening</button>
+        </div>
+        <div class="status-bar" id="sb-defects">
+          <div class="spinner"></div><span id="sb-defects-text"></span>
+        </div>
+        <div class="results-grid" id="results-defects"></div>
+      </div>
+
+      <div class="panel" id="panel-llm-review">
+        <div style="display:flex; align-items:center; gap:10px;">
+          <h2>AI LLM Review</h2>
+        </div>
+        <p class="subtitle">Generates a client-facing comparison report from two completed runs using manifests and CSV summaries only.</p>
+        <div class="card">
+          <div class="card-title">MODEL</div>
+          <p style="font-size:13px; color:var(--text); margin-bottom:16px;">Local Ollama model fixed to <code>qwen2.5:14b</code>.</p>
+          <div class="card-title">RUN INPUTS</div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Run A Folder or run_manifest.json</label>
+              <div style="display:flex; gap:10px;">
+                <input type="text" id="llm-run-a" placeholder="GaAs/2_peak_finding/ff6de819" />
+                <button class="btn btn-ghost" type="button" onclick="browseLlmRun('llm-run-a')" style="white-space:nowrap;">Browse...</button>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Run B Folder or run_manifest.json</label>
+              <div style="display:flex; gap:10px;">
+                <input type="text" id="llm-run-b" placeholder="GaAs/3_strain_map/0919168b" />
+                <button class="btn btn-ghost" type="button" onclick="browseLlmRun('llm-run-b')" style="white-space:nowrap;">Browse...</button>
+              </div>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Client Question (optional)</label>
+              <textarea id="llm-question" placeholder="Compare these two runs for client reporting and highlight metrology-relevant differences."></textarea>
+            </div>
+          </div>
+          <div class="card-title">REPORT METADATA</div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>Report ID</label>
+              <input type="text" id="llm-report-id" placeholder="GAAS-REP-001" />
+            </div>
+            <div class="form-group">
+              <label>Prepared By</label>
+              <input type="text" id="llm-prepared-by" placeholder="Ali" />
+            </div>
+            <div class="form-group">
+              <label>Approved By</label>
+              <input type="text" id="llm-approved-by" placeholder="Supervisor / Reviewer" />
+            </div>
+          </div>
+          <button class="btn btn-primary" onclick="submitLlmReview()">Generate Client Report</button>
+        </div>
+        <div class="status-bar" id="sb-llm-review">
+          <div class="spinner"></div><span id="sb-llm-review-text">Waiting for review request...</span>
+        </div>
+        <div class="card" id="llm-review-links" style="display:none;">
+          <div class="card-title">ARTIFACTS</div>
+          <div id="llm-review-links-content" style="display:flex; gap:16px; flex-wrap:wrap; font-size:13px;"></div>
+        </div>
+        <div class="card">
+          <div class="card-title">REPORT</div>
+          <div id="llm-review-output" style="white-space:pre-wrap; line-height:1.7; font-size:13px; color:var(--text);">No report generated yet.</div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- Lightbox -->
+  <div id="lightbox" onclick="closeLightbox()">
+    <span id="lightbox-close">✕</span>
+    <img id="lightbox-img" src="" />
+  </div>
+
+  <!-- Project Modal -->
+  <div id="project-modal" class="modal-overlay"
+    style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.95); z-index:200; align-items:center; justify-content:center;">
+    <div class="card"
+      style="width:500px; text-align:center; box-shadow: 0 20px 80px rgba(0,0,0,0.8); border: 2px solid var(--accent); background: #0b0f1a;">
+      <div style="font-size:60px; margin-bottom:12px;">📁</div>
+      <h2 style="margin-bottom:8px; font-size:24px;">Project Setup</h2>
+      <p class="subtitle" style="margin-bottom:20px; font-size:14px; line-height:1.5;">Choose a <b>Root Save
+          Directory</b> for your research project.<br />Results will be organized into the 5-agent folder structure
+        there.</p>
+
+      <div style="display:flex; gap:10px; margin-bottom:24px;">
+        <input type="text" id="modal-project-input" placeholder="C:\Users\Ali\PeakFindingResults"
+          style="flex:1; font-size:14px; padding:12px; border-width:2px;" />
+        <button class="btn btn-ghost" onclick="browseDirectory()"
+          style="white-space:nowrap; padding:0 18px;">Browse...</button>
+      </div>
+
+      <button class="btn btn-primary" onclick="setProjectName()"
+        style="width:100%; padding:16px; font-size:16px; letter-spacing:0.5px;">✓ Confirm & Start</button>
+    </div>
+  </div>
+
+  <script>
+    const FILES = {};
+    const POLLS = {};
+
+    // ── Project Management ──────────────────────────────────────────────
+    function openProjectModal() {
+      document.getElementById('project-modal').style.display = 'flex';
+    }
+
+    async function browseDirectory() {
+      const resp = await fetch('/api/browse-dir');
+      const data = await resp.json();
+      if (data.path) {
+        document.getElementById('modal-project-input').value = data.path;
+      }
+    }
+
+    async function browseLlmRun(targetId) {
+      const resp = await fetch('/api/browse-run-dir');
+      const data = await resp.json();
+      if (data.path) {
+        document.getElementById(targetId).value = data.path;
+      }
+    }
+
+    function setProjectName() {
+      const name = document.getElementById('modal-project-input').value.trim();
+      if (!name) return alert('A root directory / project name is obligatory to proceed.');
+
+      localStorage.setItem('stem_lab_project', name);
+      document.getElementById('project-name').value = name;
+
+      // Shorten display for sidebar if it's a long path
+      const display = name.length > 25 ? '...' + name.slice(-25) : name;
+      document.getElementById('active-project-name').textContent = display;
+      document.getElementById('active-project-name').title = name;
+      document.getElementById('project-modal').style.display = 'none';
+    }
+
+    function saveOrientation() {
+      // Orientation is intentionally session-only.
+    }
+
+    function resetOrientation() {
+      document.getElementById('flip-h').checked = false;
+      document.getElementById('flip-v').checked = false;
+    }
+
+    function initProject() {
+      const saved = localStorage.getItem('stem_lab_project');
+      if (saved) {
+        document.getElementById('project-name').value = saved;
+        const display = saved.length > 25 ? '...' + saved.slice(-25) : saved;
+        document.getElementById('active-project-name').textContent = display;
+        document.getElementById('active-project-name').title = saved;
+        document.getElementById('modal-project-input').value = saved;
+      } else {
+        openProjectModal();
+      }
+
+      // Clear legacy persisted flip flags and default to unflipped previews.
+      localStorage.removeItem('stem_flip_h');
+      localStorage.removeItem('stem_flip_v');
+      document.getElementById('flip-h').checked = false;
+      document.getElementById('flip-v').checked = false;
+    }
+
+    window.addEventListener('DOMContentLoaded', initProject);
+
+    // ── Panel navigation ──────────────────────────────────────────────
+    function show(name) {
+      document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+      document.querySelectorAll('.agent-btn').forEach(b => b.classList.remove('active'));
+      document.getElementById('panel-' + name).classList.add('active');
+      document.getElementById('nav-' + name).classList.add('active');
+    }
+
+    // ── File inputs ───────────────────────────────────────────────────
+    function setFile(key, input) {
+      if (input.files && input.files[0]) {
+        FILES[key] = input.files[0];
+        const el = document.getElementById('fn-' + key);
+        if (el) el.textContent = input.files[0].name;
+      }
+    }
+
+    // ── Drag-and-drop ─────────────────────────────────────────────────
+    document.querySelectorAll('.drop-zone').forEach(dz => {
+      dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('dragover'); });
+      dz.addEventListener('dragleave', () => dz.classList.remove('dragover'));
+      dz.addEventListener('drop', e => {
+        e.preventDefault(); dz.classList.remove('dragover');
+        // handled via hidden input click; files from drop aren't wired yet
+      });
+    });
+
+    // ── Status polling ────────────────────────────────────────────────
+    function poll(taskId, agent, onDone) {
+      const interval = setInterval(async () => {
+        const r = await fetch('/status/' + taskId);
+        const data = await r.json();
+        updateStatus(agent, data);
+        updateDot(agent, data.status);
+        updateTaskHistory(taskId, agent, data);
+        if (data.status === 'done' || data.status === 'error') {
+          clearInterval(interval);
+          if (data.status === 'done') renderResults(agent, data.outputs);
+        }
+      }, 1200);
+      POLLS[taskId] = interval;
+    }
+
+    function updateStatus(agent, data) {
+      const bar = document.getElementById('sb-' + agent);
+      const txt = document.getElementById('sb-' + agent + '-text');
+
+      // Hardware badge
+      const hw = document.getElementById('hw-' + agent);
+      if (hw && data.hardware) {
+        hw.innerHTML = `<span class="hw-badge ${data.hardware.type === 'GPU' ? 'hw-gpu' : 'hw-cpu'}">${data.hardware.type}: ${data.hardware.name}</span>`;
+      }
+
+      bar.className = 'status-bar ' + data.status;
+      const icons = { running: '⏳', done: '✅', error: '❌', queued: '🕐' };
+      let statusText = (icons[data.status] || '') + ' ' + (data.error || data.status);
+
+      if (data.progress_detail) {
+        statusText += ` (${data.progress_detail})`;
+      }
+      txt.textContent = statusText;
+
+      // Progress bar
+      const pc = document.getElementById('pc-' + agent);
+      const pf = document.getElementById('pf-' + agent);
+      if (pc && pf) {
+        if (data.status === 'running' && data.progress > 0) {
+          pc.style.display = 'block';
+          pf.style.width = (data.progress * 100) + '%';
+        } else {
+          pc.style.display = 'none';
+        }
+      }
+
+      // Log window
+      const lw = document.getElementById('log-' + agent);
+      if (lw && data.logs) {
+        lw.innerHTML = data.logs.join('<br>');
+        if (data.status === 'running') lw.scrollTop = lw.scrollHeight;
+      }
+    }
+
+    function updateDot(agent, status) {
+      const dot = document.getElementById('dot-' + agent);
+      if (dot) { dot.className = 'dot ' + (status === 'queued' ? '' : status); }
+    }
+
+    function updateTaskHistory(tid, agent, data) {
+      const hist = document.getElementById('task-history');
+      const emoji = data.status === 'done' ? '✅' : data.status === 'error' ? '❌' : '⏳';
+      let row = document.getElementById('hist-' + tid);
+      if (!row) {
+        row = document.createElement('div');
+        row.id = 'hist-' + tid;
+        row.style = 'padding:3px 10px;opacity:0.8';
+        hist.innerHTML !== 'No tasks yet' ? hist.prepend(row) : (hist.innerHTML = '', hist.appendChild(row));
+      }
+      row.textContent = emoji + ' ' + agent + ' #' + tid;
+    }
+
+    // ── Results rendering ─────────────────────────────────────────────
+    function renderResults(agent, outputs) {
+      const grid = document.getElementById('results-' + agent);
+      if (!grid) return;
+      grid.innerHTML = '';
+      outputs.forEach(url => {
+        const isPng = url.match(/\.(png|jpg|jpeg)$/i);
+        const isCsv = url.match(/\.csv$/i);
+        if (isPng) {
+          const card = document.createElement('div');
+          card.className = 'result-thumb';
+          const img = document.createElement('img');
+          img.src = url + '?t=' + Date.now();
+          img.onclick = () => openLightbox(img.src);
+          const lbl = document.createElement('div');
+          lbl.className = 'thumb-label';
+          lbl.textContent = url.split('/').pop();
+          card.appendChild(img); card.appendChild(lbl);
+          grid.appendChild(card);
+        } else if (isCsv) {
+          const card = document.createElement('div');
+          card.className = 'result-thumb csv-thumb';
+          card.innerHTML = `<span class="csv-icon">📊</span><a href="${url}" download>${url.split('/').pop()}</a>`;
+          grid.appendChild(card);
+        }
+      });
+    }
+
+    // ── Lightbox ──────────────────────────────────────────────────────
+    function getOutputLabel(agent, filename) {
+      if (agent === 'analyze') {
+        if (/_visual\.(png|jpg|jpeg)$/i.test(filename)) return 'Atom Fitting';
+        if (/_sublattice\.(png|jpg|jpeg)$/i.test(filename)) return 'Lattice Mode';
+        if (/_atoms\.csv$/i.test(filename)) return 'Atom Coordinates';
+        if (/_sublattice_0\.csv$/i.test(filename)) return 'Sublattice 0 CSV';
+        if (/_sublattice_1\.csv$/i.test(filename)) return 'Sublattice 1 CSV';
+        if (/_peak_stats\.json$/i.test(filename)) return 'Peak Finding Summary';
+      }
+      if (agent === 'strain') {
+        if (/_strain\.csv$/i.test(filename)) return 'Strain CSV';
+        if (/_strain_stats\.json$/i.test(filename)) return 'Strain Summary';
+        if (/_strain_e_xx\.(png|jpg|jpeg)$/i.test(filename)) return 'Horizontal Strain';
+        if (/_strain_e_yy\.(png|jpg|jpeg)$/i.test(filename)) return 'Vertical Strain';
+        if (/_strain_a1_len\.(png|jpg|jpeg)$/i.test(filename)) return 'Horizontal Spacing';
+        if (/_strain_a2_len\.(png|jpg|jpeg)$/i.test(filename)) return 'Vertical Spacing';
+        if (/_contour_a1_len\.(png|jpg|jpeg)$/i.test(filename)) return 'Horizontal Contour';
+        if (/_contour_a2_len\.(png|jpg|jpeg)$/i.test(filename)) return 'Vertical Contour';
+        if (/_line_profiles\.(png|jpg|jpeg)$/i.test(filename)) return 'Line Profiles';
+      }
+      if (agent === 'cluster') {
+        if (/_cluster_map\.(png|jpg|jpeg)$/i.test(filename)) return 'Cluster Map';
+        if (/_clustered\.csv$/i.test(filename)) return 'Clustered CSV';
+        if (/_cluster_stats\.json$/i.test(filename)) return 'Clustering Summary';
+      }
+      if (agent === 'defects') {
+        if (/_defect_region_heatmap\.(png|jpg|jpeg)$/i.test(filename)) return 'Region Heatmap';
+        if (/_defect_region_overlay\.(png|jpg|jpeg)$/i.test(filename)) return 'Region Overlay';
+        if (/_defect_regions\.csv$/i.test(filename)) return 'Region Atom CSV';
+        if (/_defect_region_summary\.csv$/i.test(filename)) return 'Region Summary CSV';
+        if (/_defect_region_stats\.json$/i.test(filename)) return 'Region Screening Summary';
+      }
+      return filename;
+    }
+
+    function formatStatValue(value) {
+      if (Array.isArray(value)) return value.join(', ');
+      if (typeof value === 'number') {
+        if (Number.isInteger(value)) return String(value);
+        if (Math.abs(value) >= 1) return value.toFixed(3).replace(/\.?0+$/, '');
+        return value.toFixed(4).replace(/\.?0+$/, '');
+      }
+      return String(value);
+    }
+
+    function buildStatsEntries(agent, stats) {
+      if (agent === 'analyze') {
+        return [
+          ['Input atoms', stats.input_atom_count],
+          ['Sublattice mode', stats.sublattice_mode],
+          ['Split applied', stats.sublattice_split_applied],
+          ['Detected sublattices', stats.identified_sublattice_count],
+          ['Sublattice 0', stats.sublattice_0_count],
+          ['Sublattice 1', stats.sublattice_1_count],
+          ['Sublattice balance', stats.sublattice_balance_ratio],
+          ['Paired atoms', stats.paired_atom_count],
+          ['Pairing coverage', stats.paired_atom_fraction],
+          ['Mean pair distance', stats.pair_distance_mean],
+          ['Median pair distance', stats.pair_distance_median],
+          ['Pair distance std', stats.pair_distance_std],
+          ['Mean pair angle', stats.pair_angle_mean],
+          ['Processing time (s)', stats.processing_time_seconds],
+          ['Sublattice method', stats.sublattice_method],
+          ['Pair max dist', stats.sublattice_pair_max_dist],
+          ['Pair min dist', stats.sublattice_pair_min_dist],
+        ];
+      }
+      if (agent === 'strain') {
+        return [
+          ['Input atoms', stats.input_atom_count],
+          ['Post-prune atoms', stats.post_prune_atom_count],
+          ['Strain-covered atoms', stats.valid_strain_atom_count],
+          ['Strain analysis coverage', stats.valid_strain_fraction],
+          ['Prune thresh', stats.prune_thresh],
+          ['Axis tolerance', stats.axis_tolerance_scale],
+          ['Min neighbors', stats.min_axis_neighbors],
+        ];
+      }
+      if (agent === 'cluster') {
+        return [
+          ['Input atoms', stats.input_atom_count],
+          ['Clustered atoms', stats.clustered_atom_count],
+          ['Clustering analysis coverage', stats.clustered_fraction],
+          ['HDB clusters', stats.hdb_cluster_count],
+          ['HDB noise', stats.hdb_noise_count],
+          ['GMM clusters', stats.gmm_cluster_count],
+          ['Mean anomaly prob', stats.defect_prob_mean],
+          ['Max anomaly prob', stats.defect_prob_max],
+        ];
+      }
+      if (agent === 'defects') {
+        return [
+          ['Input atoms', stats.input_atom_count],
+          ['Abnormal regions', stats.region_count],
+          ['Atoms inside regions', stats.region_atom_count],
+          ['Region atom fraction', stats.region_atom_fraction],
+          ['Largest region atoms', stats.largest_region_atoms],
+          ['Mean region severity', stats.mean_region_severity],
+          ['Max region severity', stats.max_region_severity],
+          ['Peak signal mean', stats.peak_signal_mean],
+          ['Cluster signal mean', stats.cluster_signal_mean],
+          ['Strain signal mean', stats.strain_signal_mean],
+          ['Dominant source', stats.dominant_region_source],
+          ['Peak CSV used', stats.peak_context && stats.peak_context.peak_csv_used],
+          ['Peak manifest used', stats.peak_context && stats.peak_context.peak_manifest_used],
+          ['Strain CSV used', stats.strain_context && stats.strain_context.strain_csv_used],
+          ['Strain manifest used', stats.strain_context && stats.strain_context.strain_manifest_used],
+          ['Region threshold', stats.region_threshold],
+          ['Blur sigma', stats.blur_sigma],
+          ['Min region atoms', stats.min_region_atoms],
+        ];
+      }
+      return Object.entries(stats);
+    }
+
+    function renderAssessment(card, stats) {
+      const assessment = stats.assessment;
+      if (!assessment) return;
+
+      const flagWrap = document.createElement('div');
+      flagWrap.className = 'stats-flags';
+      ['overall_flag', 'material_flag', 'confidence_flag', 'sublattice_flag', 'pairing_flag', 'parameter_regime', 'pruning_flag', 'coverage_flag', 'evidence_flag', 'source_flag', 'peak_context_flag', 'strain_context_flag'].forEach(key => {
+        if (assessment[key]) {
+          const chip = document.createElement('div');
+          chip.className = 'stats-flag';
+          chip.textContent = assessment[key];
+          flagWrap.appendChild(chip);
+        }
+      });
+      if (flagWrap.childNodes.length) card.appendChild(flagWrap);
+
+      if (assessment.summary) {
+        const summary = document.createElement('div');
+        summary.className = 'stats-summary';
+        summary.textContent = assessment.summary;
+        card.appendChild(summary);
+      }
+    }
+
+    async function renderStatsCard(agent, url, label, grid) {
+      const response = await fetch(url + '?t=' + Date.now());
+      const stats = await response.json();
+      const entries = buildStatsEntries(agent, stats).filter(([, value]) => value !== undefined && value !== null && value !== '');
+      const card = document.createElement('div');
+      card.className = 'stats-card';
+      const heading = document.createElement('div');
+      heading.className = 'thumb-label';
+      heading.textContent = label;
+      const list = document.createElement('div');
+      list.className = 'stats-list';
+      card.appendChild(heading);
+      renderAssessment(card, stats);
+      entries.forEach(([key, value]) => {
+        const item = document.createElement('div');
+        item.className = 'stats-item';
+        item.innerHTML = `<div class="stats-key">${key}</div><div class="stats-value">${formatStatValue(value)}</div>`;
+        list.appendChild(item);
+      });
+      card.appendChild(list);
+      if (stats.assessment && stats.assessment.warning) {
+        const warning = document.createElement('div');
+        warning.className = 'stats-warning';
+        warning.textContent = stats.assessment.warning;
+        card.appendChild(warning);
+      }
+      grid.appendChild(card);
+    }
+
+    async function renderResults(agent, outputs) {
+      const grid = document.getElementById('results-' + agent);
+      if (!grid) return;
+      grid.innerHTML = '';
+      const seen = new Set();
+      outputs.forEach(url => {
+        if (seen.has(url)) return;
+        seen.add(url);
+        const filename = url.split('/').pop();
+        const label = getOutputLabel(agent, filename);
+        const isPng = url.match(/\.(png|jpg|jpeg)$/i);
+        const isCsv = url.match(/\.csv$/i);
+        const isJson = url.match(/\.json$/i);
+        if (isPng) {
+          const card = document.createElement('div');
+          card.className = 'result-thumb';
+          const img = document.createElement('img');
+          img.src = url + '?t=' + Date.now();
+          img.onclick = () => openLightbox(img.src);
+          const lbl = document.createElement('div');
+          lbl.className = 'thumb-label';
+          lbl.textContent = label;
+          card.appendChild(img); card.appendChild(lbl);
+          grid.appendChild(card);
+        } else if (isCsv) {
+          const card = document.createElement('div');
+          card.className = 'result-thumb csv-thumb';
+          card.innerHTML = `<span class="csv-icon">CSV</span><a href="${url}" download>${label}</a>`;
+          grid.appendChild(card);
+        } else if (isJson && ['analyze', 'strain', 'cluster', 'defects'].includes(agent)) {
+          renderStatsCard(agent, url, label, grid).catch(() => {});
+        }
+      });
+    }
+
+    function openLightbox(src) {
+      document.getElementById('lightbox-img').src = src;
+      document.getElementById('lightbox').classList.add('open');
+    }
+    function closeLightbox() { document.getElementById('lightbox').classList.remove('open'); }
+
+    // ── Submit functions ──────────────────────────────────────────────
+
+    function toggleWorkers() {
+      const hw = document.getElementById('gs-hardware').value;
+      document.getElementById('gs-workers-group').style.opacity = (hw === 'gpu') ? '0.3' : '1.0';
+      document.getElementById('gs-workers').disabled = (hw === 'gpu');
+    }
+
+    async function submitGridSearch() {
+      const fd = new FormData();
+      if (!FILES['gs-image']) return alert('Please select an image first.');
+      fd.append('image', FILES['gs-image']);
+      fd.append('sep_min', document.getElementById('gs-sep-min').value);
+      fd.append('sep_max', document.getElementById('gs-sep-max').value);
+      fd.append('sep_step', document.getElementById('gs-sep-step').value);
+      fd.append('thresh_min', document.getElementById('gs-th-min').value);
+      fd.append('thresh_max', document.getElementById('gs-th-max').value);
+      fd.append('thresh_step', document.getElementById('gs-th-step').value);
+      fd.append('hardware', document.getElementById('gs-hardware').value);
+      fd.append('workers', document.getElementById('gs-workers').value);
+      fd.append('project', document.getElementById('project-name').value);
+      fd.append('flip_h', document.getElementById('flip-h').checked);
+      fd.append('flip_v', document.getElementById('flip-v').checked);
+      const { task_id } = await (await fetch('/run/grid-search', { method: 'POST', body: fd })).json();
+      updateDot('grid-search', 'running');
+      document.getElementById('results-grid-search').innerHTML = '';
+      poll(task_id, 'grid-search');
+    }
+
+    function toggleAnalyzeWorkers() {
+      const hw = document.getElementById('an-hardware').value;
+      document.getElementById('an-workers-group').style.opacity = (hw === 'gpu') ? '0.3' : '1.0';
+      document.getElementById('an-workers').disabled = (hw === 'gpu');
+    }
+
+    function toggleSublatticeControls() {
+      const mode = document.getElementById('an-sub-mode').value;
+      const method = document.getElementById('an-sub-method').value;
+      const enabled = (mode === 'two' && method === 'local_pairing');
+      const methodEnabled = (mode === 'two');
+      document.getElementById('an-sub-method').disabled = !methodEnabled;
+      document.getElementById('an-sub-maxdist').disabled = !enabled;
+      document.getElementById('an-sub-mindist').disabled = !enabled;
+      document.getElementById('an-sub-method').style.opacity = methodEnabled ? '1.0' : '0.4';
+      document.getElementById('an-sub-maxdist').style.opacity = enabled ? '1.0' : '0.4';
+      document.getElementById('an-sub-mindist').style.opacity = enabled ? '1.0' : '0.4';
+    }
+
+    async function submitAnalyze() {
+      const fd = new FormData();
+      if (!FILES['an-image']) return alert('Please select an image first.');
+      fd.append('image', FILES['an-image']);
+      fd.append('separation', document.getElementById('an-sep').value);
+      fd.append('threshold', document.getElementById('an-thresh').value);
+      fd.append('sublattice_mode', document.getElementById('an-sub-mode').value);
+      fd.append('sublattice_method', document.getElementById('an-sub-method').value);
+      const subMaxDist = document.getElementById('an-sub-maxdist').value.trim();
+      if (subMaxDist !== '') fd.append('sublattice_pair_max_dist', subMaxDist);
+      fd.append('sublattice_pair_min_dist', document.getElementById('an-sub-mindist').value);
+      fd.append('hardware', document.getElementById('an-hardware').value);
+      fd.append('workers', document.getElementById('an-workers').value);
+      fd.append('project', document.getElementById('project-name').value);
+      fd.append('flip_h', document.getElementById('flip-h').checked);
+      fd.append('flip_v', document.getElementById('flip-v').checked);
+      const { task_id } = await (await fetch('/run/analyze', { method: 'POST', body: fd })).json();
+      updateDot('analyze', 'running');
+      document.getElementById('results-analyze').innerHTML = '';
+      poll(task_id, 'analyze');
+    }
+
+    async function submitStrain() {
+      const fd = new FormData();
+      if (!FILES['st-csv']) return alert('Please upload the dumbbell CSV.');
+      if (!FILES['st-img']) return alert('Please upload the STEM image.');
+      fd.append('csv', FILES['st-csv']);
+      fd.append('image', FILES['st-img']);
+      fd.append('prune_thresh', document.getElementById('st-prune-thresh').value);
+      fd.append('axis_tolerance_scale', document.getElementById('st-axis-tol').value);
+      fd.append('min_axis_neighbors', document.getElementById('st-min-axis-neigh').value);
+      fd.append('project', document.getElementById('project-name').value);
+      fd.append('flip_h', document.getElementById('flip-h').checked);
+      fd.append('flip_v', document.getElementById('flip-v').checked);
+      const { task_id } = await (await fetch('/run/strain', { method: 'POST', body: fd })).json();
+      updateDot('strain', 'running');
+      document.getElementById('results-strain').innerHTML = '';
+      poll(task_id, 'strain');
+    }
+
+    async function submitCluster() {
+      const fd = new FormData();
+      if (!FILES['cl-csv']) return alert('Please upload the strain CSV.');
+      fd.append('csv', FILES['cl-csv']);
+      if (FILES['cl-img']) fd.append('image', FILES['cl-img']);
+      fd.append('min_cluster_size', document.getElementById('cl-min').value);
+      fd.append('gmm_components', document.getElementById('cl-gmm').value);
+      fd.append('project', document.getElementById('project-name').value);
+      fd.append('flip_h', document.getElementById('flip-h').checked);
+      fd.append('flip_v', document.getElementById('flip-v').checked);
+      const { task_id } = await (await fetch('/run/cluster', { method: 'POST', body: fd })).json();
+      updateDot('cluster', 'running');
+      document.getElementById('results-cluster').innerHTML = '';
+      poll(task_id, 'cluster');
+    }
+
+    async function submitDefects() {
+      const fd = new FormData();
+      if (!FILES['df-csv']) return alert('Please upload the clustered CSV.');
+      fd.append('csv', FILES['df-csv']);
+      if (FILES['df-img']) fd.append('image', FILES['df-img']);
+      if (FILES['df-peakcsv']) fd.append('peak_csv', FILES['df-peakcsv']);
+      if (FILES['df-straincsv']) fd.append('strain_csv', FILES['df-straincsv']);
+      if (FILES['df-peakmanifest']) fd.append('peak_manifest', FILES['df-peakmanifest']);
+      if (FILES['df-strainmanifest']) fd.append('strain_manifest', FILES['df-strainmanifest']);
+      fd.append('region_threshold', document.getElementById('df-region-threshold').value);
+      fd.append('blur_sigma', document.getElementById('df-blur-sigma').value);
+      fd.append('min_region_atoms', document.getElementById('df-min-region-atoms').value);
+      fd.append('peak_weight', document.getElementById('df-peak-weight').value);
+      fd.append('cluster_weight', document.getElementById('df-cluster-weight').value);
+      fd.append('strain_weight', document.getElementById('df-strain-weight').value);
+      fd.append('project', document.getElementById('project-name').value);
+      fd.append('flip_h', document.getElementById('flip-h').checked);
+      fd.append('flip_v', document.getElementById('flip-v').checked);
+      const { task_id } = await (await fetch('/run/defects', { method: 'POST', body: fd })).json();
+      updateDot('defects', 'running');
+      document.getElementById('results-defects').innerHTML = '';
+      poll(task_id, 'defects');
+    }
+
+    async function submitLlmReview() {
+      const runA = document.getElementById('llm-run-a').value.trim();
+      const runB = document.getElementById('llm-run-b').value.trim();
+      const question = document.getElementById('llm-question').value.trim();
+      const reportId = document.getElementById('llm-report-id').value.trim();
+      const preparedBy = document.getElementById('llm-prepared-by').value.trim();
+      const approvedBy = document.getElementById('llm-approved-by').value.trim();
+      if (!runA || !runB) return alert('Please provide both run paths.');
+
+      const statusText = document.getElementById('sb-llm-review-text');
+      const output = document.getElementById('llm-review-output');
+      const linksCard = document.getElementById('llm-review-links');
+      const linksContent = document.getElementById('llm-review-links-content');
+
+      updateDot('llm-review', 'running');
+      statusText.textContent = 'Generating client report with qwen2.5:14b...';
+      output.textContent = 'Generating report...';
+      linksCard.style.display = 'none';
+      linksContent.innerHTML = '';
+
+      try {
+        const response = await fetch('/api/llm-review/compare-runs', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            run_a: runA,
+            run_b: runB,
+            question,
+            report_id: reportId,
+            prepared_by: preparedBy,
+            approved_by: approvedBy
+          })
+        });
+        const raw = await response.text();
+        let data = {};
+        try {
+          data = raw ? JSON.parse(raw) : {};
+        } catch {
+          if (!response.ok) {
+            throw new Error(raw || 'LLM review failed.');
+          }
+          throw new Error('LLM review returned a non-JSON response.');
+        }
+        if (!response.ok) {
+          throw new Error(data.detail || 'LLM review failed.');
+        }
+
+        output.textContent = data.report_markdown || 'No report text returned.';
+        const links = [];
+        if (data.report_html_url) links.push(`<a href="${data.report_html_url}" target="_blank">Open HTML report</a>`);
+        if (data.report_url) links.push(`<a href="${data.report_url}" target="_blank">Open report</a>`);
+        if (data.context_url) links.push(`<a href="${data.context_url}" target="_blank">Open context JSON</a>`);
+        if (links.length) {
+          linksContent.innerHTML = links.join('');
+          linksCard.style.display = 'block';
+        }
+        statusText.textContent = 'Report generated successfully.';
+        updateDot('llm-review', 'done');
+      } catch (err) {
+        output.textContent = String(err);
+        statusText.textContent = 'LLM review failed.';
+        updateDot('llm-review', 'error');
+      }
+    }
+
+    toggleSublatticeControls();
+  </script>
+</body>
+
+</html>

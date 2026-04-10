@@ -1,0 +1,101 @@
+# =============================================================================
+# STEM Atom Finder — Default Configuration
+# =============================================================================
+# All parameters here are tracked by MLflow for full reproducibility.
+# Override via CLI flags or environment-specific YAML files.
+
+# --- Preprocessing ---
+preprocessing:
+  rescale_factor: 1.0          # 0.5 to half-size, 1.0 for original
+  binning: 1                   # Integer binning factor (e.g. 2 for 2x2 binning)
+  low_pass_filter: false        # Apply Gaussian blur for denoising before peaks
+  sigma_blur: 1.0              # Blur sigma if filter enabled
+  crop_edge_pixels: 0          # Remove artifacts from image edges
+
+# --- Peak Detection ---
+peak_detection:
+  separation: 8               # Min peak separation (increased for GaAs dumbbells usually)
+  threshold: 0.4              # Intensity threshold 0.0-1.0
+  pca_enabled: true            # PCA noise filtering before detection
+  method: "dog"                # "local_max" | "dog" | "blob_log"
+  refinement:
+    percent: 0.25              # Size of fitting disks (as % of distance to nearest neighbor)
+    radius: null               # Optional: fixed pixel radius for fitting disks (overrides percent)
+
+# --- Y-Sublattice Filtering ---
+y_sublattice:
+  enabled: true
+  quantile: 0.70               # Top brightness quantile for Y-candidates
+  nn_tolerance: 0.20           # Neighbor distance tolerance (±20%)
+
+# --- Spatial Coherence ---
+coherence:
+  k: 2                         # Min same-state neighbors to keep A/B
+  margin: 0.5                  # Apply coherence if |s_norm| < tau + margin
+
+# --- Confidence ---
+confidence:
+  threshold: 0.3               # Atoms below this excluded from polarity PCA
+  sigma_range: [0.5, 5.0]      # Valid Gaussian sigma range (pixels)
+  expected_neighbors: [4, 6]   # Expected neighbor count range
+
+# --- Polarity ---
+polarity:
+  tau: 1.0                     # State classification threshold
+
+# --- Quality Gates ---
+quality:
+  min_high_conf_atoms: 20
+  min_explained_variance: 0.60
+  max_unk_fraction: 0.50
+  min_tile_confidence: 0.25
+  min_unique_fraction: 0.85
+  max_residual_ratio: 0.25     # Max residual as fraction of lattice spacing
+
+# --- Grid Search ---
+grid_search:
+  separations: [4, 5, 6, 7, 8, 10, 12]
+  thresholds: [0.3, 0.35, 0.4, 0.45, 0.5, 0.55, 0.6, 0.7]
+  scoring: "high_conf_atoms_minus_unk"   # Objective function
+  pca_options: [true]
+  parallel_workers: 8          # Number of parallel grid search workers
+
+# --- Batch Processing ---
+batch:
+  mode: "full"                 # full | tile | crop
+  max_workers: 16              # CPU workers for batch (match your AMD cores)
+  tile_quadrants: 4
+  output_format: "csv"         # csv | hdf5 | both
+
+# --- GPU Acceleration ---
+gpu:
+  enabled: true                # Set false to force CPU-only
+  device_id: 0                 # CUDA device index
+  memory_fraction: 0.8         # Max GPU memory fraction to use
+  batch_size_2d_gauss: 512     # Atoms per GPU batch for Gaussian fitting
+  use_cupy_linalg: true        # CuPy for matrix operations
+  use_cuml_nn: true            # cuML for nearest-neighbor search
+
+# --- MLflow ---
+mlflow:
+  tracking_uri: "mlruns"       # Local MLflow directory (or remote URI)
+  experiment_name: "stem-atom-finder"
+  log_artifacts: true          # Save plots/CSVs as MLflow artifacts
+  log_images: false            # Save input images (large, disable for batch)
+  auto_log_params: true        # Automatically log all config params
+
+# --- Ollama Agent ---
+agent:
+  model: "llama3.1:8b"         # Ollama model name
+  base_url: "http://localhost:11434"
+  temperature: 0.3             # Low for factual analysis
+  max_tokens: 4096
+  system_prompt_file: "configs/agent_system_prompt.txt"
+
+# --- Output ---
+output:
+  save_plots: true
+  save_hdf5: false             # Skip large .hdf5 by default
+  marker_size: 24
+  plot_dpi: 150
+  results_dir: "results"

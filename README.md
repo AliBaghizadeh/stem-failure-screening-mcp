@@ -1,12 +1,30 @@
-# STEM Atom Finder
+# STEM Failure Screening MCP
 
-Agentic microscopy pipeline for atomic-resolution semiconductor STEM analysis, with MCP-routed scientific tools, a local FastAPI app, and optional AWS run sharing.
+![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white)
+![FastAPI](https://img.shields.io/badge/FastAPI-app-009688?logo=fastapi&logoColor=white)
+![MCP](https://img.shields.io/badge/MCP-tool%20routing-111111)
+![HyperSpy](https://img.shields.io/badge/HyperSpy-microscopy%20data-4C78A8)
+![Atomap](https://img.shields.io/badge/Atomap-atomic%20column%20analysis-1F9D55)
+![AWS](https://img.shields.io/badge/AWS-S3%20%2B%20DynamoDB-FF9900?logo=amazonaws&logoColor=white)
+![Local LLM](https://img.shields.io/badge/Ollama-qwen2.5%3A14b-6A5ACD)
 
-## What this project does
+MCP-native HR-STEM pipeline for atom finding, strain mapping, clustering, defect-region screening, and LLM review in semiconductor failure screening.
 
-This project turns atomic-resolution STEM analysis into a structured, multi-stage workflow instead of a collection of disconnected scripts.
+## Overview
 
-The current pipeline supports:
+Semiconductor failure analysis increasingly depends on reading atomic-scale lattice distortions, missing columns, strain fields, and defective regions from HR-STEM images, but in practice this work is still often fragmented across manual scripts, expert-only interpretation, and disconnected tools. This project addresses that gap by combining `HyperSpy` for microscopy data handling, `Atomap` for atomic-column and sublattice analysis, and an agentic AI workflow that routes peak finding, strain mapping, clustering, defect-region screening, and run-to-run review through a structured application pipeline. The goal is not only to detect atoms, but to turn lattice-level microscopy into a reproducible, auditable, and decision-oriented workflow for semiconductor failure screening.
+
+## Why this repository matters
+
+- It converts microscopy analysis from one-off scripts into a traceable staged pipeline.
+- It uses `Atomap` and `HyperSpy` as the scientific backbone rather than replacing trusted microscopy tooling.
+- It uses MCP as an execution layer so app actions map to explicit scientific tools instead of hidden internal calls.
+- It produces structured run outputs that are easier to review, compare, share, and eventually operationalize in metrology environments.
+- It adds LLM review at the report layer, where the model reasons over manifests, statistics, and stage outputs instead of inventing image-level conclusions directly.
+
+## Pipeline
+
+The current workflow is:
 
 1. grid search for peak-finding parameter selection
 2. peak finding and atom fitting
@@ -24,16 +42,17 @@ Each stage writes structured outputs such as:
 - PNG overlays and heatmaps
 - LLM review reports
 
-## Architecture
+## Technical stack
 
-The repository combines four layers:
+Core scientific and engineering components:
 
-- `app/`: FastAPI backend and browser UI
-- `mcp_app/`: MCP servers that expose scientific tools as callable endpoints
-- `core/`: core microscopy analysis pipeline and run logic
-- `ml/`: clustering and downstream data-analysis helpers
-
-This design keeps the scientific implementation in Python while routing stage execution through a standardized tool layer.
+- `HyperSpy` for microscopy data loading, signal handling, and scientific I/O
+- `Atomap` for atomic-column fitting, sublattice logic, and lattice-scale analysis
+- `FastAPI` for the local web application and orchestration layer
+- `MCP` for standardized tool routing across pipeline stages
+- `HDBSCAN` and related ML utilities for clustering and downstream screening
+- `Ollama` with `qwen2.5:14b` for local LLM review
+- `AWS S3 + DynamoDB` for compact run sharing and indexing
 
 ## MCP in this project
 
@@ -43,7 +62,8 @@ In practice that means:
 
 - the web app does not call each processing script directly
 - stage execution is exposed through MCP tools
-- runs can be standardized, inspected, extended, and later consumed by agents or other clients
+- scientific steps become easier to inspect, test, and extend
+- the same tools can later be consumed by agents, other clients, or production wrappers
 
 Current mounted MCP servers include:
 
@@ -52,9 +72,9 @@ Current mounted MCP servers include:
 - `/mcp/ml`
 - `/mcp/project`
 
-## Web app
+## Web application
 
-The app provides stage tabs for:
+The app currently exposes the following analysis tabs:
 
 - Peak Finding
 - Strain Map
@@ -62,21 +82,46 @@ The app provides stage tabs for:
 - Defect Region Screening
 - LLM Review
 
-The UI is designed for practical microscopy workflow use:
+The UI is built around practical analysis rather than demo-only visuals:
 
-- fixed image labels for key outputs
-- per-stage statistics
-- QC-style interpretation flags
-- optional cloud sync foundation for sharing compact run artifacts
+- fixed labels for key images instead of raw filenames
+- stage-level statistics and QC-style interpretation flags
+- support for sublattice-aware and single-sublattice workflows
+- structured report generation for comparing completed runs
+- optional cloud sync for sharing compact run artifacts
+
+## Reproducibility and QC
+
+One of the central goals of this project is to make atomic-resolution failure screening more reproducible.
+
+To support that, the pipeline records:
+
+- explicit run manifests
+- saved statistics per stage
+- structured CSV outputs
+- standardized report headers and screening outcomes
+- cloud-indexable artifacts for cross-team review
+
+This makes the workflow more suitable for metrology-style review than ad hoc notebook outputs or screenshot-driven interpretation.
 
 ## Example assets included in GitHub
 
-The public repo keeps two example GaAs images as lightweight reference assets:
+The public repository keeps two example GaAs images as lightweight sample assets:
 
 - `data/1.tif`
 - `data/2.tif`
 
-These are included as sample inputs for repository demonstration. Large run folders, generated results, and private working datasets are intentionally excluded from GitHub.
+Large experimental result folders, private notes, and local run logs are intentionally excluded from GitHub.
+
+## Repository layout
+
+- `app/`: FastAPI backend, UI, cloud endpoints, and MCP client routing
+- `core/`: peak finding, grid search, preprocessing, strain analysis, and sublattice logic
+- `mcp_app/`: MCP servers and report-building utilities
+- `ml/`: clustering, feature engineering, and defect-region screening helpers
+- `configs/`: configuration files and prompts
+- `scripts/`: helper scripts for maintenance and cloud sync
+- `data/`: minimal public sample inputs
 
 ## Quick start
 
@@ -91,24 +136,21 @@ Then open:
 
 - `http://localhost:8005/`
 
-To verify MCP routing:
+Useful validation endpoints:
 
-- `http://localhost:8005/api/mcp`
-
-To verify cloud-sync configuration:
-
-- `http://localhost:8005/api/cloud/status`
+- MCP status: `http://localhost:8005/api/mcp`
+- cloud status: `http://localhost:8005/api/cloud/status`
 
 ## Environment
 
-The project currently expects the `stem_mcp` Conda environment for the active app workflow.
+The active app workflow expects the `stem_mcp` Conda environment.
 
-Important files:
+Primary setup files:
 
 - `environment-mcp.yml`
 - `pyproject.toml`
 
-If you need the AWS sharing path, set these environment variables:
+If you want to use AWS artifact sharing, configure:
 
 - `CLOUD_SYNC_ENABLED`
 - `AWS_REGION`
@@ -117,13 +159,13 @@ If you need the AWS sharing path, set these environment variables:
 - `AWS_ACCESS_KEY_ID`
 - `AWS_SECRET_ACCESS_KEY`
 
-See:
+Reference file:
 
 - `.env.cloud.example`
 
 ## Cloud sharing
 
-The scientific pipeline remains local-first, but selected run outputs can be pushed to AWS for cross-team review.
+The scientific pipeline remains local-first, but selected outputs can be pushed to AWS for cross-team review.
 
 Currently synced artifact types:
 
@@ -172,3 +214,18 @@ This GitHub-oriented repo intentionally excludes:
 - large experimental working folders
 
 That keeps the repository focused on reusable code, app infrastructure, MCP integration, and a minimal set of sample assets.
+
+## Suggested GitHub topics
+
+Recommended repository topics:
+
+- `semiconductor`
+- `failure-analysis`
+- `stem`
+- `microscopy`
+- `materials-science`
+- `fastapi`
+- `mcp`
+- `llm`
+- `computer-vision`
+- `metrology`

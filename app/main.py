@@ -43,10 +43,13 @@ import uvicorn
 # ── Path setup ──────────────────────────────────────────────────────────────
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
+NUMBA_CACHE_DIR = ROOT / ".numba_cache"
+NUMBA_CACHE_DIR.mkdir(parents=True, exist_ok=True)
 os.environ.setdefault("OMP_NUM_THREADS", "1")
 os.environ.setdefault("MKL_NUM_THREADS", "1")
 os.environ.setdefault("HYPERSPY_DISABLE_PLUGIN_SCAN", "1")
 os.environ.setdefault("HYPERSPY_GUI_BACKEND", "none")
+os.environ.setdefault("NUMBA_CACHE_DIR", str(NUMBA_CACHE_DIR))
 
 UPLOAD_DIR = ROOT / "data" / "_uploads"
 RESULTS_DIR = ROOT / "results" / "_app"
@@ -133,7 +136,7 @@ class TaskLoggingHandler(logging.Handler):
             if len(_tasks[self.tid]["logs"]) > 100:
                 _tasks[self.tid]["logs"].pop(0)
 
-def _new_task(agent: str) -> str:
+def _new_task(agent: str, *, project: str = "", output_dir: str = "", auto_sync: bool = False) -> str:
     tid = str(uuid.uuid4())[:8]
     _tasks[tid] = {
         "status": "queued", 
@@ -143,7 +146,11 @@ def _new_task(agent: str) -> str:
         "started": time.time(),
         "progress": 0.0,
         "hardware": get_current_hw(),
-        "logs": [f"Task {tid} initiated."]
+        "logs": [f"Task {tid} initiated."],
+        "project": project,
+        "output_dir": output_dir,
+        "auto_sync": auto_sync,
+        "cloud_sync": None,
     }
     return tid
 
@@ -154,6 +161,42 @@ def _task_done(tid: str, outputs: list[str]):
 
 def _task_error(tid: str, err: str):
     _tasks[tid].update({"status": "error", "error": err})
+
+
+def _cloud_project_id(task: dict) -> str:
+    project = str(task.get("project") or "").strip()
+    if not project:
+        return "demo"
+    return Path(project).name if (":" in project or project.startswith("/") or project.startswith("\\")) else project
+
+
+def _run_auto_cloud_sync(tid: str):
+    task = _tasks.get(tid)
+    if not task or not task.get("auto_sync"):
+        return
+    if sync_run_directory_to_cloud is None or get_cloud_config is None:
+        task["cloud_sync"] = {"status": "error", "error": _CLOUD_SYNC_IMPORT_ERROR or "Cloud sync unavailable."}
+        return
+
+    output_dir = str(task.get("output_dir") or "").strip()
+    if not output_dir:
+        task["cloud_sync"] = {"status": "error", "error": "No output directory recorded for task."}
+        return
+
+    task["cloud_sync"] = {"status": "running"}
+    try:
+        result = sync_run_directory_to_cloud(
+            project=_cloud_project_id(task),
+            output_dir=output_dir,
+            run_id=Path(output_dir).name,
+            sample_name=_cloud_project_id(task),
+            include_previews=True,
+        )
+        task["cloud_sync"] = {"status": "done", **result}
+        task["logs"].append(f"AWS sync completed: s3://{result['bucket']}/projects/{result['project']}/runs/{result['run_id']}/")
+    except Exception as exc:
+        task["cloud_sync"] = {"status": "error", "error": str(exc)}
+        task["logs"].append(f"AWS sync failed: {exc}")
 
 
 # ── Agent worker functions (top-level for pickling) ──────────────────────────
@@ -519,6 +562,7 @@ def _submit(tid: str, fn, *args):
             _task_error(tid, err_tb.splitlines()[-1]) # Show the main error in UI but keep full in logs
         else:
             _task_done(tid, f.result())
+            _run_auto_cloud_sync(tid)
 
     future.add_done_callback(_cb)
 
@@ -684,12 +728,21 @@ def cloud_status():
         }
 
     config = get_cloud_config()
+    identity = {}
+    if config.enabled and config.is_configured and sync_run_directory_to_cloud is not None:
+        try:
+            from app.cloud_sync import _caller_identity
+            identity = _caller_identity(config)
+        except Exception:
+            identity = {}
     return {
         "enabled": config.enabled,
         "configured": config.is_configured,
         "region": config.region,
         "bucket": config.bucket,
         "dynamodb_table": config.dynamodb_table,
+        "aws_account_id": identity.get("account_id"),
+        "synced_by": identity.get("arn"),
         "error": None,
     }
 
@@ -715,6 +768,37 @@ def sync_run_to_cloud(payload: SyncRunRequest):
         raise HTTPException(400, str(exc)) from exc
 
     return result
+
+
+class SyncTaskRequest(BaseModel):
+    task_id: str
+    include_previews: bool = True
+
+
+@app.post("/api/cloud/sync-task")
+def sync_task_to_cloud(payload: SyncTaskRequest):
+    if payload.task_id not in _tasks:
+        raise HTTPException(404, "Task not found")
+    task = _tasks[payload.task_id]
+    output_dir = str(task.get("output_dir") or "").strip()
+    if not output_dir:
+        raise HTTPException(400, "Task has no recorded output directory.")
+    if sync_run_directory_to_cloud is None:
+        detail = _CLOUD_SYNC_IMPORT_ERROR or "Cloud sync layer is unavailable."
+        raise HTTPException(503, detail)
+    try:
+        result = sync_run_directory_to_cloud(
+            project=_cloud_project_id(task),
+            output_dir=output_dir,
+            run_id=Path(output_dir).name,
+            sample_name=_cloud_project_id(task),
+            include_previews=payload.include_previews,
+        )
+        task["cloud_sync"] = {"status": "done", **result}
+        return result
+    except Exception as exc:
+        task["cloud_sync"] = {"status": "error", "error": str(exc)}
+        raise HTTPException(400, str(exc)) from exc
 
 
 @app.post("/api/llm-review/compare-runs")
@@ -806,15 +890,18 @@ async def run_grid_search(
     hardware: str = Form("cpu"),
     workers: int = Form(4),
     project: str = Form(""),
+    auto_sync: bool = Form(False),
     flip_h: bool = Form(False),
     flip_v: bool = Form(False)
 ):
-    tid = _new_task("grid-search")
+    tid = _new_task("grid-search", project=project, auto_sync=auto_sync)
     image_path = _save_upload(image, tid)
+    out_dir = _out_dir(tid, "grid-search", project)
+    _tasks[tid]["output_dir"] = out_dir
     sep_range = list(range(sep_min, sep_max + 1, sep_step))
     thresh_range = [round(thresh_min + i * thresh_step, 2)
                     for i in range(int((thresh_max - thresh_min) / thresh_step + 0.001) + 1)]
-    _submit(tid, _worker_grid_search_via_mcp, image_path, _out_dir(tid, "grid-search", project), 
+    _submit(tid, _worker_grid_search_via_mcp, image_path, out_dir, 
             sep_range, thresh_range, tid, hardware, workers, flip_h, flip_v)
     return {"task_id": tid}
 
@@ -831,12 +918,15 @@ async def run_analyze(
     hardware: str = Form("cpu"),
     workers: int = Form(4),
     project: str = Form(""),
+    auto_sync: bool = Form(False),
     flip_h: bool = Form(False),
     flip_v: bool = Form(False)
 ):
-    tid = _new_task("analyze")
+    tid = _new_task("analyze", project=project, auto_sync=auto_sync)
     image_path = _save_upload(image, tid)
-    _submit(tid, _worker_analyze_via_mcp, image_path, _out_dir(tid, "analyze", project), 
+    out_dir = _out_dir(tid, "analyze", project)
+    _tasks[tid]["output_dir"] = out_dir
+    _submit(tid, _worker_analyze_via_mcp, image_path, out_dir, 
             separation, threshold, sublattice_mode, sublattice_method, sublattice_pair_max_dist, sublattice_pair_min_dist,
             hardware, workers, flip_h, flip_v)
     return {"task_id": tid}
@@ -850,18 +940,21 @@ async def run_strain(
     axis_tolerance_scale: float = Form(0.7),
     min_axis_neighbors: int = Form(2),
     project: str = Form(""),
+    auto_sync: bool = Form(False),
     flip_h: bool = Form(False),
     flip_v: bool = Form(False)
 ):
-    tid = _new_task("strain")
+    tid = _new_task("strain", project=project, auto_sync=auto_sync)
     csv_path = _save_upload(csv, tid)
     image_path = _save_upload(image, tid)
+    out_dir = _out_dir(tid, "strain", project)
+    _tasks[tid]["output_dir"] = out_dir
     _submit(
         tid,
         _worker_strain_via_mcp,
         csv_path,
         image_path,
-        _out_dir(tid, "strain", project),
+        out_dir,
         prune_thresh,
         axis_tolerance_scale,
         min_axis_neighbors,
@@ -878,13 +971,16 @@ async def run_cluster(
     min_cluster_size: int = Form(15),
     gmm_components: int = Form(4),
     project: str = Form(""),
+    auto_sync: bool = Form(False),
     flip_h: bool = Form(False),
     flip_v: bool = Form(False)
 ):
-    tid = _new_task("cluster")
+    tid = _new_task("cluster", project=project, auto_sync=auto_sync)
     csv_path = _save_upload(csv, tid)
     image_path = _save_upload(image, tid) if image else None
-    _submit(tid, _worker_cluster_via_mcp, csv_path, image_path, _out_dir(tid, "cluster", project), 
+    out_dir = _out_dir(tid, "cluster", project)
+    _tasks[tid]["output_dir"] = out_dir
+    _submit(tid, _worker_cluster_via_mcp, csv_path, image_path, out_dir, 
             min_cluster_size, gmm_components, flip_h, flip_v)
     return {"task_id": tid}
 
@@ -904,22 +1000,25 @@ async def run_defects(
     cluster_weight: float = Form(0.30),
     strain_weight: float = Form(0.25),
     project: str = Form(""),
+    auto_sync: bool = Form(False),
     flip_h: bool = Form(False),
     flip_v: bool = Form(False)
 ):
-    tid = _new_task("defects")
+    tid = _new_task("defects", project=project, auto_sync=auto_sync)
     csv_path = _save_upload(csv, tid)
     image_path = _save_upload(image, tid) if image else None
     peak_csv_path = _save_upload(peak_csv, tid) if peak_csv else None
     strain_csv_path = _save_upload(strain_csv, tid) if strain_csv else None
     peak_manifest_path = _save_upload(peak_manifest, tid) if peak_manifest else None
     strain_manifest_path = _save_upload(strain_manifest, tid) if strain_manifest else None
+    out_dir = _out_dir(tid, "defects", project)
+    _tasks[tid]["output_dir"] = out_dir
     _submit(
         tid,
         _worker_defects_via_mcp,
         csv_path,
         image_path,
-        _out_dir(tid, "defects", project),
+        out_dir,
         peak_csv_path,
         strain_csv_path,
         peak_manifest_path,

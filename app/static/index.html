@@ -699,6 +699,22 @@
       </div>
       <input type="hidden" id="project-name" />
 
+      <div class="sidebar-label" style="margin-top:10px;">AWS Sync</div>
+      <div style="padding:0 12px; margin-bottom: 16px; display:flex; flex-direction:column; gap:8px;">
+        <div id="cloud-status-box" style="font-size:11px; color:var(--muted); line-height:1.5; background:rgba(0,0,0,0.2); border:1px solid var(--border); border-radius:8px; padding:10px;">
+          Checking AWS status...
+        </div>
+        <label style="display:flex; align-items:center; gap:8px; cursor:pointer; background:rgba(0,0,0,0.2); padding:8px; border-radius:6px; font-size:12px;">
+          <input type="checkbox" id="cloud-auto-sync" onchange="saveCloudPrefs()">
+          Auto Sync successful runs
+        </label>
+        <input type="text" id="cloud-run-folder" placeholder="Run folder for manual sync"
+          style="font-size:11px; padding:8px 10px;" />
+        <button class="btn btn-ghost" onclick="browseCloudRun()" style="width:100%; font-size:11px; padding:6px;">Browse Run Folder</button>
+        <button class="btn btn-ghost" onclick="syncLatestTask()" style="width:100%; font-size:11px; padding:6px;">Sync Latest Completed Run</button>
+        <button class="btn btn-success" onclick="syncCloudRunFolder()" style="width:100%; font-size:11px; padding:6px;">Sync to AWS</button>
+      </div>
+
       <div class="sidebar-label" style="margin-top:16px;">History</div>
       <div id="task-history" style="font-size:11px;color:var(--muted);padding:4px 10px;">No tasks yet</div>
     </nav>
@@ -1208,6 +1224,7 @@
   <script>
     const FILES = {};
     const POLLS = {};
+    let LAST_COMPLETED_TASK_ID = null;
 
     // ── Project Management ──────────────────────────────────────────────
     function openProjectModal() {
@@ -1227,6 +1244,14 @@
       const data = await resp.json();
       if (data.path) {
         document.getElementById(targetId).value = data.path;
+      }
+    }
+
+    async function browseCloudRun() {
+      const resp = await fetch('/api/browse-run-dir');
+      const data = await resp.json();
+      if (data.path) {
+        document.getElementById('cloud-run-folder').value = data.path;
       }
     }
 
@@ -1253,6 +1278,81 @@
       document.getElementById('flip-v').checked = false;
     }
 
+    function saveCloudPrefs() {
+      localStorage.setItem('stem_cloud_auto_sync', document.getElementById('cloud-auto-sync').checked ? 'true' : 'false');
+    }
+
+    function cloudAutoSyncEnabled() {
+      return document.getElementById('cloud-auto-sync').checked;
+    }
+
+    async function refreshCloudStatus() {
+      const box = document.getElementById('cloud-status-box');
+      try {
+        const resp = await fetch('/api/cloud/status');
+        const data = await resp.json();
+        const parts = [
+          `Enabled: ${data.enabled ? 'yes' : 'no'}`,
+          `Configured: ${data.configured ? 'yes' : 'no'}`,
+          `Bucket: ${data.bucket || '-'}`,
+          `Table: ${data.dynamodb_table || '-'}`,
+        ];
+        if (data.aws_account_id) parts.push(`Account: ${data.aws_account_id}`);
+        if (data.error) parts.push(`Error: ${data.error}`);
+        box.innerHTML = parts.join('<br>');
+      } catch {
+        box.textContent = 'Cloud status unavailable.';
+      }
+    }
+
+    async function syncCloudRunFolder() {
+      const runFolder = document.getElementById('cloud-run-folder').value.trim();
+      if (!runFolder) return alert('Please choose a completed run folder first.');
+      const project = document.getElementById('project-name').value.trim() || 'demo';
+      const runId = runFolder.split(/[/\\\\]/).filter(Boolean).pop();
+      const stageMap = { '1_grid_search': 'grid_search', '2_peak_finding': 'peak_finding', '3_strain_map': 'strain_map', '4_clustering': 'clustering', '5_defects': 'defect_region_screening' };
+      const match = Object.entries(stageMap).find(([folder]) => runFolder.includes(folder));
+      const stage = match ? match[1] : '';
+      try {
+        const resp = await fetch('/api/cloud/sync-run', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            project,
+            run_folder: runFolder,
+            stage,
+            run_id: runId,
+            sample_name: project,
+            include_previews: true
+          })
+        });
+        const data = await resp.json();
+        if (!resp.ok) throw new Error(data.detail || 'Cloud sync failed.');
+        alert(`AWS sync complete for ${data.run_id}`);
+        refreshCloudStatus();
+      } catch (err) {
+        alert(err.message || 'Cloud sync failed.');
+      }
+    }
+
+    async function syncLatestTask() {
+      if (!LAST_COMPLETED_TASK_ID) return alert('No completed task is available yet.');
+      try {
+        const resp = await fetch('/api/cloud/sync-task', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ task_id: LAST_COMPLETED_TASK_ID, include_previews: true })
+        });
+        const data = await resp.json();
+        if (!resp.ok) throw new Error(data.detail || 'Task cloud sync failed.');
+        if (data.output_dir) document.getElementById('cloud-run-folder').value = data.output_dir;
+        alert(`AWS sync complete for task ${LAST_COMPLETED_TASK_ID}`);
+        refreshCloudStatus();
+      } catch (err) {
+        alert(err.message || 'Task cloud sync failed.');
+      }
+    }
+
     function initProject() {
       const saved = localStorage.getItem('stem_lab_project');
       if (saved) {
@@ -1270,6 +1370,8 @@
       localStorage.removeItem('stem_flip_v');
       document.getElementById('flip-h').checked = false;
       document.getElementById('flip-v').checked = false;
+      document.getElementById('cloud-auto-sync').checked = localStorage.getItem('stem_cloud_auto_sync') === 'true';
+      refreshCloudStatus();
     }
 
     window.addEventListener('DOMContentLoaded', initProject);
@@ -1311,7 +1413,11 @@
         updateTaskHistory(taskId, agent, data);
         if (data.status === 'done' || data.status === 'error') {
           clearInterval(interval);
-          if (data.status === 'done') renderResults(agent, data.outputs);
+          if (data.status === 'done') {
+            LAST_COMPLETED_TASK_ID = taskId;
+            if (data.output_dir) document.getElementById('cloud-run-folder').value = data.output_dir;
+            renderResults(agent, data.outputs);
+          }
         }
       }, 1200);
       POLLS[taskId] = interval;
@@ -1333,6 +1439,13 @@
 
       if (data.progress_detail) {
         statusText += ` (${data.progress_detail})`;
+      }
+      if (data.cloud_sync && data.cloud_sync.status === 'running') {
+        statusText += ' | AWS sync running';
+      } else if (data.cloud_sync && data.cloud_sync.status === 'done') {
+        statusText += ' | AWS synced';
+      } else if (data.cloud_sync && data.cloud_sync.status === 'error') {
+        statusText += ` | AWS sync failed: ${data.cloud_sync.error}`;
       }
       txt.textContent = statusText;
 
@@ -1633,6 +1746,7 @@
       fd.append('hardware', document.getElementById('gs-hardware').value);
       fd.append('workers', document.getElementById('gs-workers').value);
       fd.append('project', document.getElementById('project-name').value);
+      fd.append('auto_sync', cloudAutoSyncEnabled());
       fd.append('flip_h', document.getElementById('flip-h').checked);
       fd.append('flip_v', document.getElementById('flip-v').checked);
       const { task_id } = await (await fetch('/run/grid-search', { method: 'POST', body: fd })).json();
@@ -1674,6 +1788,7 @@
       fd.append('hardware', document.getElementById('an-hardware').value);
       fd.append('workers', document.getElementById('an-workers').value);
       fd.append('project', document.getElementById('project-name').value);
+      fd.append('auto_sync', cloudAutoSyncEnabled());
       fd.append('flip_h', document.getElementById('flip-h').checked);
       fd.append('flip_v', document.getElementById('flip-v').checked);
       const { task_id } = await (await fetch('/run/analyze', { method: 'POST', body: fd })).json();
@@ -1692,6 +1807,7 @@
       fd.append('axis_tolerance_scale', document.getElementById('st-axis-tol').value);
       fd.append('min_axis_neighbors', document.getElementById('st-min-axis-neigh').value);
       fd.append('project', document.getElementById('project-name').value);
+      fd.append('auto_sync', cloudAutoSyncEnabled());
       fd.append('flip_h', document.getElementById('flip-h').checked);
       fd.append('flip_v', document.getElementById('flip-v').checked);
       const { task_id } = await (await fetch('/run/strain', { method: 'POST', body: fd })).json();
@@ -1708,6 +1824,7 @@
       fd.append('min_cluster_size', document.getElementById('cl-min').value);
       fd.append('gmm_components', document.getElementById('cl-gmm').value);
       fd.append('project', document.getElementById('project-name').value);
+      fd.append('auto_sync', cloudAutoSyncEnabled());
       fd.append('flip_h', document.getElementById('flip-h').checked);
       fd.append('flip_v', document.getElementById('flip-v').checked);
       const { task_id } = await (await fetch('/run/cluster', { method: 'POST', body: fd })).json();
@@ -1732,6 +1849,7 @@
       fd.append('cluster_weight', document.getElementById('df-cluster-weight').value);
       fd.append('strain_weight', document.getElementById('df-strain-weight').value);
       fd.append('project', document.getElementById('project-name').value);
+      fd.append('auto_sync', cloudAutoSyncEnabled());
       fd.append('flip_h', document.getElementById('flip-h').checked);
       fd.append('flip_v', document.getElementById('flip-v').checked);
       const { task_id } = await (await fetch('/run/defects', { method: 'POST', body: fd })).json();

@@ -43,6 +43,16 @@ def _boto3_session(cfg: CloudConfig):
     return boto3.Session(**_session_kwargs(cfg))
 
 
+def _caller_identity(cfg: CloudConfig) -> dict[str, str]:
+    session = _boto3_session(cfg)
+    identity = session.client("sts").get_caller_identity()
+    return {
+        "account_id": identity.get("Account", ""),
+        "arn": identity.get("Arn", ""),
+        "user_id": identity.get("UserId", ""),
+    }
+
+
 def infer_stage_from_output_dir(output_dir: str | Path) -> str:
     parts = [part.lower() for part in Path(output_dir).resolve().parts]
     if "1_grid_search" in parts:
@@ -159,6 +169,7 @@ def sync_run_directory_to_cloud(
         artifact_index.setdefault(category, []).append(s3_key)
 
     timestamp = datetime.now(timezone.utc).isoformat()
+    caller = _caller_identity(cfg)
     record = {
         "project_id": project or "unassigned",
         "run_stage": f"{effective_run_id}#{stage_name}",
@@ -175,8 +186,33 @@ def sync_run_directory_to_cloud(
         "report_s3_keys": artifact_index["reports"],
         "preview_s3_keys": artifact_index["previews"],
         "screening_outcome": manifest_payload.get("metrics", {}).get("screening_outcome", ""),
+        "aws_account_id": caller["account_id"],
+        "synced_by": caller["arn"],
     }
     write_run_index_record(record, cfg=cfg)
+
+    manifest_path = output_root / "run_manifest.json"
+    if manifest_path.exists():
+        try:
+            manifest_data = json.loads(manifest_path.read_text(encoding="utf-8"))
+        except Exception:
+            manifest_data = {}
+        manifest_data["cloud_sync"] = {
+            "synced": True,
+            "synced_at": timestamp,
+            "bucket": cfg.s3_bucket,
+            "project": project,
+            "run_id": effective_run_id,
+            "stage": stage_name,
+            "aws_account_id": caller["account_id"],
+            "synced_by": caller["arn"],
+            "manifest_s3_key": artifact_index["manifests"][0] if artifact_index["manifests"] else "",
+            "stats_s3_keys": artifact_index["stats"],
+            "csv_s3_keys": artifact_index["csv"],
+            "report_s3_keys": artifact_index["reports"],
+            "preview_s3_keys": artifact_index["previews"],
+        }
+        manifest_path.write_text(json.dumps(manifest_data, indent=2), encoding="utf-8")
 
     return {
         "project": project,
@@ -184,6 +220,9 @@ def sync_run_directory_to_cloud(
         "run_id": effective_run_id,
         "output_dir": str(output_root),
         "bucket": cfg.s3_bucket,
+        "aws_account_id": caller["account_id"],
+        "synced_by": caller["arn"],
+        "synced_at": timestamp,
         "uploaded_count": len(uploaded),
         "artifacts": [artifact.__dict__ for artifact in uploaded],
         "ddb_record": record,

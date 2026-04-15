@@ -10,6 +10,8 @@
 
 MCP-native HR-STEM pipeline for atom finding, strain mapping, clustering, defect-region screening, and LLM review in semiconductor failure screening.
 
+![Agentic workflow](assets/agentic_workflow.png)
+
 ## Overview
 
 Semiconductor failure analysis increasingly depends on reading atomic-scale lattice distortions, missing columns, strain fields, and defective regions from HR-STEM images, but in practice this work is still often fragmented across manual scripts, expert-only interpretation, and disconnected tools. This project addresses that gap by combining [HyperSpy](https://hyperspy.org/hyperspy-doc/current/index.html) for microscopy data handling, [Atomap](https://atomap.org/) for atomic-column and sublattice analysis, and an agentic AI workflow that routes peak finding, strain mapping, clustering, defect-region screening, and run-to-run review through a structured application pipeline. The goal is not only to detect atoms, but to turn lattice-level microscopy into a reproducible, auditable, and decision-oriented workflow for semiconductor failure screening.

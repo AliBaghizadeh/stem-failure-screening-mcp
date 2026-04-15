@@ -12,12 +12,12 @@ MCP-native HR-STEM pipeline for atom finding, strain mapping, clustering, defect
 
 ## Overview
 
-Semiconductor failure analysis increasingly depends on reading atomic-scale lattice distortions, missing columns, strain fields, and defective regions from HR-STEM images, but in practice this work is still often fragmented across manual scripts, expert-only interpretation, and disconnected tools. This project addresses that gap by combining `HyperSpy` for microscopy data handling, `Atomap` for atomic-column and sublattice analysis, and an agentic AI workflow that routes peak finding, strain mapping, clustering, defect-region screening, and run-to-run review through a structured application pipeline. The goal is not only to detect atoms, but to turn lattice-level microscopy into a reproducible, auditable, and decision-oriented workflow for semiconductor failure screening.
+Semiconductor failure analysis increasingly depends on reading atomic-scale lattice distortions, missing columns, strain fields, and defective regions from HR-STEM images, but in practice this work is still often fragmented across manual scripts, expert-only interpretation, and disconnected tools. This project addresses that gap by combining [HyperSpy](https://hyperspy.org/hyperspy-doc/current/index.html) for microscopy data handling, [Atomap](https://atomap.org/) for atomic-column and sublattice analysis, and an agentic AI workflow that routes peak finding, strain mapping, clustering, defect-region screening, and run-to-run review through a structured application pipeline. The goal is not only to detect atoms, but to turn lattice-level microscopy into a reproducible, auditable, and decision-oriented workflow for semiconductor failure screening.
 
 ## Why this repository matters
 
 - It converts microscopy analysis from one-off scripts into a traceable staged pipeline.
-- It uses `Atomap` and `HyperSpy` as the scientific backbone rather than replacing trusted microscopy tooling.
+- It uses [Atomap](https://atomap.org/) and [HyperSpy](https://hyperspy.org/hyperspy-doc/current/index.html) as the scientific backbone rather than replacing trusted microscopy tooling.
 - It uses MCP as an execution layer so app actions map to explicit scientific tools instead of hidden internal calls.
 - It produces structured run outputs that are easier to review, compare, share, and eventually operationalize in metrology environments.
 - It adds LLM review at the report layer, where the model reasons over manifests, statistics, and stage outputs instead of inventing image-level conclusions directly.
@@ -42,12 +42,12 @@ Each stage writes structured outputs such as:
 - PNG overlays and heatmaps
 - LLM review reports
 
-## Technical stack
+## Technical Stack
 
 Core scientific and engineering components:
 
-- `HyperSpy` for microscopy data loading, signal handling, and scientific I/O
-- `Atomap` for atomic-column fitting, sublattice logic, and lattice-scale analysis
+- [HyperSpy](https://hyperspy.org/hyperspy-doc/current/index.html) for microscopy data loading, signal handling, and scientific I/O
+- [Atomap](https://atomap.org/) for atomic-column fitting, sublattice logic, and lattice-scale analysis
 - `FastAPI` for the local web application and orchestration layer
 - `MCP` for standardized tool routing across pipeline stages
 - `HDBSCAN` and related ML utilities for clustering and downstream screening
@@ -72,7 +72,7 @@ Current mounted MCP servers include:
 - `/mcp/ml`
 - `/mcp/project`
 
-## Web application
+## Web Application
 
 The app currently exposes the following analysis tabs:
 
@@ -104,7 +104,7 @@ To support that, the pipeline records:
 
 This makes the workflow more suitable for metrology-style review than ad hoc notebook outputs or screenshot-driven interpretation.
 
-## Example assets included in GitHub
+## Example Assets Included in GitHub
 
 The public repository keeps two example GaAs images as lightweight sample assets:
 
@@ -113,17 +113,23 @@ The public repository keeps two example GaAs images as lightweight sample assets
 
 Large experimental result folders, private notes, and local run logs are intentionally excluded from GitHub.
 
-## Repository layout
+## Project Structure
 
-- `app/`: FastAPI backend, UI, cloud endpoints, and MCP client routing
-- `core/`: peak finding, grid search, preprocessing, strain analysis, and sublattice logic
-- `mcp_app/`: MCP servers and report-building utilities
-- `ml/`: clustering, feature engineering, and defect-region screening helpers
-- `configs/`: configuration files and prompts
-- `scripts/`: helper scripts for maintenance and cloud sync
-- `data/`: minimal public sample inputs
+```text
+.
+├── app/          FastAPI backend, UI, cloud endpoints, and MCP client routing
+├── configs/      Configuration files and prompts
+├── core/         Peak finding, grid search, preprocessing, strain, and sublattice logic
+├── data/         Minimal public sample inputs
+├── mcp_app/      MCP servers and report-building utilities
+├── ml/           Clustering, feature engineering, and defect-region screening helpers
+├── scripts/      Helper scripts for maintenance and cloud sync
+├── .github/      CI workflow configuration
+├── environment-mcp.yml
+└── pyproject.toml
+```
 
-## Quick start
+## Quick Start
 
 From the project root:
 
@@ -163,7 +169,7 @@ Reference file:
 
 - `.env.cloud.example`
 
-## Cloud sharing
+## Cloud Sharing
 
 The scientific pipeline remains local-first, but selected outputs can be pushed to AWS for cross-team review.
 
@@ -203,7 +209,7 @@ GitHub Actions is configured for lightweight checks only:
 
 Heavy microscopy execution remains local and should only move to CI later through a controlled self-hosted runner strategy.
 
-## Repository scope
+## Repository Scope
 
 This GitHub-oriented repo intentionally excludes:
 
@@ -215,17 +221,11 @@ This GitHub-oriented repo intentionally excludes:
 
 That keeps the repository focused on reusable code, app infrastructure, MCP integration, and a minimal set of sample assets.
 
-## Suggested GitHub topics
+## 📜 License
 
-Recommended repository topics:
+Distributed under the MIT License. See [LICENSE](LICENSE) for details.
 
-- `semiconductor`
-- `failure-analysis`
-- `stem`
-- `microscopy`
-- `materials-science`
-- `fastapi`
-- `mcp`
-- `llm`
-- `computer-vision`
-- `metrology`
+## 🙋 Contact
+
+Questions, feedback, or collaborations?  
+Open a GitHub issue or contact: `alibaghizade@gmail.com`
